@@ -1,0 +1,12 @@
+[package]
+name = "hello-rust"
+version = "0.1.0"
+authors = ["vince"]
+edition = "2018"
+
+[dependencies]
+sciter-rs = "0.5.45"
+rusqlite = {version="0.17", features=["bundled"]}
+time = "0.1.42"
+chrono = "0.4.6"
+guid-create = "0.1.1"
