@@ -3,6 +3,7 @@ use guid_create::GUID;
 use crate::database_helper_utility as dhu;
 use chrono::prelude::*;
 use time::Duration;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum AccountType {
@@ -17,6 +18,13 @@ pub enum AccountType {
     RECEIVABLE, 
     ROOT,
 }
+
+impl std::fmt::Display for AccountType {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(&self.to_string())        
+    }
+}
+
 
 fn convert_to_account_type(incoming_result : Result<String>) -> Result<AccountType> {
     let incoming_account_type : String = incoming_result.unwrap();
@@ -270,6 +278,100 @@ pub fn retrieve_by_guid(file_path : &str, incoming_account_guid : GUID) -> Resul
     for row in mapped_rows {
         accounts.push(row?);
     }    
+
+    Ok(accounts)
+}
+
+//RetrieveAccountForAccountType retrieves the account for the given type. (Ex: ASSET, or LIABILITY)
+pub fn retrieve_account_for_account_type(file_path : &str, incoming_account_type : AccountType) -> Result<Vec<Account>> {
+    //Attempt to open the file from the given path to perform this operation
+    let conn = Connection::open(file_path)?;
+    //Get all the account fields for the non hidden accounts
+    let sql : String = String::from(
+        ["SELECT ",&_fields()," FROM accounts ", 
+         "WHERE account_type=@account_type AND ",
+         "      parent_guid NOT IN (",
+         "                          SELECT guid ",
+         "                          FROM accounts ",
+         "                          WHERE account_type=@account_type",
+         "                         )"].join(""));
+    let mut stmt = conn.prepare(&sql)?;
+    //Get all the accounts into a vector for returning the result
+    let mut accounts : Vec<Account> = Vec::new();
+    let mapped_rows = stmt.query_map_named(
+        named_params!{"@account_type": incoming_account_type.to_string() }, |row| 
+        Ok( 
+            Account{
+                    guid: dhu::convert_string_result_to_guid(row.get(0))?,
+                    name: row.get(1)?,
+                    account_type: convert_to_account_type(row.get(2))?,
+                    commodity_guid: dhu::convert_string_result_to_guid(row.get(3))?,
+                    commodity_scu: row.get(4)?,
+                    non_std_scu: row.get(5)?,
+                    parent_guid: dhu::convert_string_result_to_guid(row.get(6))?,
+                    code: row.get(7)?,
+                    description: row.get(8)?,
+                    hidden: row.get(9)?,
+                    placeholder: row.get(10)?,
+            }
+        )
+    )?;
+
+    //Now we can put each of the mapped row results into the accounts vector
+    //std::result::Result<accounts_manager::Account, rusqlite::Error>    
+    for row in mapped_rows {
+        accounts.push(row?);
+    }    
+
+    Ok(accounts)
+}
+
+//retrieve_top_account_by_name retrieves the top account for a given name.
+// There must only be 1 account found for this, or it fails.
+pub fn retrieve_top_account_by_name(file_path : &str, incoming_account_name : String) -> Result<Vec<Account>> {
+    //Attempt to open the file from the given path to perform this operation
+    let conn = Connection::open(file_path)?;
+    //Get all the account fields for the non hidden accounts
+    let sql : String = String::from(
+        ["SELECT ",&_fields()," FROM accounts ",
+         "WHERE name=@incoming_account_name "].join(""));
+    let mut stmt = conn.prepare(&sql)?;
+    //Get all the accounts into a vector for returning the result
+    let mut accounts : Vec<Account> = Vec::new();
+    let mapped_rows = stmt.query_map_named(
+        named_params!{"@incoming_account_name": incoming_account_name }, |row| 
+        Ok( 
+            Account{
+                    guid: dhu::convert_string_result_to_guid(row.get(0))?,
+                    name: row.get(1)?,
+                    account_type: convert_to_account_type(row.get(2))?,
+                    commodity_guid: dhu::convert_string_result_to_guid(row.get(3))?,
+                    commodity_scu: row.get(4)?,
+                    non_std_scu: row.get(5)?,
+                    parent_guid: dhu::convert_string_result_to_guid(row.get(6))?,
+                    code: row.get(7)?,
+                    description: row.get(8)?,
+                    hidden: row.get(9)?,
+                    placeholder: row.get(10)?,
+            }
+        )
+    )?;
+
+    //Now we can put each of the mapped row results into the accounts vector
+    //std::result::Result<accounts_manager::Account, rusqlite::Error>    
+    for row in mapped_rows {
+        accounts.push(row?);
+    }    
+
+    if accounts.len() != 1 {
+        let error_message : String = ["There were ", &accounts.len().to_string(),
+                                      " accounts found for this",
+                                      " name: '", &incoming_account_name,
+                                      "'. Please check your entries",
+                                      " and try again!"].join("");        
+                                              
+        return Err(rusqlite::Error::InvalidParameterName(error_message));
+    } 
 
     Ok(accounts)
 }
