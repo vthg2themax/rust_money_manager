@@ -4,6 +4,7 @@ extern crate chrono;
 use guid_create::GUID;
 use chrono::prelude::*;
 use rusqlite::*;
+use rusqlite::types::*;
 
 const FORMAT_STRING : &str = "%Y%m%d%H%M%S";
 
@@ -56,7 +57,7 @@ pub fn convert_string_result_to_guid(incoming_result : Result<String>) -> Result
 
 }
 
-///convert_guid_to_string converts a guid to an sqlite string if possible, 
+///convert_guid_to_sqlite_string converts a guid to an sqlite string if possible, 
 /// like so: f737a4904dac6736c7d8fe7b765ee354
 pub fn convert_guid_to_sqlite_string(incoming_guid : GUID) -> Result<String> {    
     let mut incoming_guid = incoming_guid.to_string().to_lowercase();
@@ -66,6 +67,18 @@ pub fn convert_guid_to_sqlite_string(incoming_guid : GUID) -> Result<String> {
     }
 
     Ok(incoming_guid)
+
+}
+
+///convert_guid_to_sqlite_parameter converts a guid to an sqlite string if possible, 
+/// like so: f737a4904dac6736c7d8fe7b765ee354 or NULL
+pub fn convert_guid_to_sqlite_parameter(incoming_guid : GUID) -> Result<Option<String>> {    
+    //If it's a null GUID we want to return a null value
+    if incoming_guid == _null_guid() {
+        return Ok(None);
+    }
+    //Otherwise attempt to convert the value to a sqlite guid string
+    return Ok(Some(convert_guid_to_sqlite_string(incoming_guid)?));
 
 }
 

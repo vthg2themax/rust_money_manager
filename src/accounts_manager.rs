@@ -20,8 +20,8 @@ pub enum AccountType {
 }
 
 impl std::fmt::Display for AccountType {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&self.to_string())        
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {        
+        write!(fmt, "{:?}", self)
     }
 }
 
@@ -41,6 +41,12 @@ fn convert_to_account_type(incoming_result : Result<String>) -> Result<AccountTy
         "ROOT" => Ok(AccountType::ROOT),
         _ => panic!(format!("The given Account Type '{0}' is not valid!",
                             incoming_account_type.as_str())),
+    }
+}
+
+impl Account {
+    pub fn new() {
+
     }
 }
 
@@ -374,4 +380,95 @@ pub fn retrieve_top_account_by_name(file_path : &str, incoming_account_name : St
     } 
 
     Ok(accounts)
+}
+
+//retrieve_top_account_by_name_starting_with retrieves the top account for a given name starting with.
+// There must only be 1 account found for this, or it fails.
+pub fn retrieve_top_account_by_name_starting_with(file_path : &str, incoming_account_name : String) -> Result<Vec<Account>> {
+    //Attempt to open the file from the given path to perform this operation
+    let conn = Connection::open(file_path)?;
+    //Get all the account fields for the non hidden accounts
+    let sql : String = String::from(
+        ["SELECT ",&_fields()," FROM accounts ",
+         "WHERE name LIKE @incoming_account_name "].join(""));
+    let mut stmt = conn.prepare(&sql)?;
+    //Get all the accounts into a vector for returning the result
+    let mut accounts : Vec<Account> = Vec::new();
+    let mapped_rows = stmt.query_map_named(
+        named_params!{"@incoming_account_name": 
+                      [incoming_account_name.clone(), "%".to_string()].join("") }, |row| 
+        Ok( 
+            Account{
+                    guid: dhu::convert_string_result_to_guid(row.get(0))?,
+                    name: row.get(1)?,
+                    account_type: convert_to_account_type(row.get(2))?,
+                    commodity_guid: dhu::convert_string_result_to_guid(row.get(3))?,
+                    commodity_scu: row.get(4)?,
+                    non_std_scu: row.get(5)?,
+                    parent_guid: dhu::convert_string_result_to_guid(row.get(6))?,
+                    code: row.get(7)?,
+                    description: row.get(8)?,
+                    hidden: row.get(9)?,
+                    placeholder: row.get(10)?,
+            }
+        )
+    )?;
+
+    //Now we can put each of the mapped row results into the accounts vector
+    //std::result::Result<accounts_manager::Account, rusqlite::Error>    
+    for row in mapped_rows {
+        accounts.push(row?);
+    }    
+
+    if accounts.len() != 1 {
+        let error_message : String = ["There were ", &accounts.len().to_string(),
+                                      " accounts found for this",
+                                      " name: '", &incoming_account_name,
+                                      "'. Please check your entries",
+                                      " and try again!"].join("");        
+                                              
+        return Err(rusqlite::Error::InvalidParameterName(error_message));
+    } 
+
+    Ok(accounts)
+}
+
+pub fn save_new(file_path : &str, incoming_account : &Account) -> Result<bool> {
+    //Attempt to open the file from the given path to perform this operation
+    let conn = Connection::open(file_path)?;
+    
+    let sql = 
+        ["INSERT INTO accounts (", &_fields(),") values (",
+        "@guid,@name,@account_type,@commodity_guid,@commodity_scu,@non_std_scu,",
+         "@parent_guid,@code,@description,@hidden,@placeholder )"
+        ].join("");
+
+    let result = conn.execute_named(&sql,
+        named_params!{
+            "@guid" : dhu::convert_guid_to_sqlite_string(
+                                                incoming_account.guid)?,
+            "@name" : incoming_account.name.to_string(),
+            "@account_type" : incoming_account.account_type.to_string(),
+            "@commodity_guid" : dhu::convert_guid_to_sqlite_parameter(
+                                                incoming_account.commodity_guid)?,
+            "@commodity_scu" : incoming_account.commodity_scu,
+            "@non_std_scu" : incoming_account.non_std_scu,
+            "@parent_guid" : dhu::convert_guid_to_sqlite_parameter(
+                                                incoming_account.parent_guid)?,
+            "@code" : incoming_account.code,
+            "@description" : incoming_account.description,
+            "@hidden" : if incoming_account.hidden == false {0} else {1},
+            "@placeholder" : if incoming_account.placeholder == false {0} else {1},
+        }
+        ).unwrap();    
+
+    
+    if result != 1 {
+        panic!(format!("There were {0} record changes instead of just 1!",
+                        result.to_string())
+        );
+    }
+
+    Ok(true)
+    
 }
