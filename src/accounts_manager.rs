@@ -433,6 +433,78 @@ pub fn retrieve_top_account_by_name_starting_with(file_path : &str, incoming_acc
     Ok(accounts)
 }
 
+pub fn delete_existing(file_path : &str, incoming_account_guid : GUID) -> Result<bool> {
+    //Attempt to open the file from the given path to perform this operation
+    let conn = Connection::open(file_path)?;
+    
+    let sql = 
+        ["DELETE FROM accounts ",
+        " WHERE guid=@guid"
+        ].join("");
+
+    let result = conn.execute_named(&sql,
+        named_params!{
+            "@guid" : dhu::convert_guid_to_sqlite_string(
+                                                incoming_account_guid)?,            
+        }
+        ).unwrap();    
+
+    
+    if result != 1 {
+        panic!(format!("There were {0} record changes instead of just 1!",
+                        result.to_string())
+        );
+    }
+
+    Ok(true)
+    
+}
+
+pub fn update_existing(file_path : &str, incoming_account : &Account) -> Result<bool> {
+    //Attempt to open the file from the given path to perform this operation
+    let conn = Connection::open(file_path)?;
+    
+    let sql = 
+        ["UPDATE accounts SET ",
+        "                     name=@name, account_type=@account_type, ",
+        "                     commodity_guid=@commodity_guid, ",
+        "                     commodity_scu=@commodity_scu,",
+        "                     non_std_scu=@non_std_scu, parent_guid=@parent_guid, ",
+        "                     code=@code, description=@description,",
+        "                     hidden=@hidden, placeholder=@placeholder ",
+        " WHERE guid=@guid"
+        ].join("");
+
+    let result = conn.execute_named(&sql,
+        named_params!{
+            "@guid" : dhu::convert_guid_to_sqlite_string(
+                                                incoming_account.guid)?,
+            "@name" : incoming_account.name.to_string(),
+            "@account_type" : incoming_account.account_type.to_string(),
+            "@commodity_guid" : dhu::convert_guid_to_sqlite_parameter(
+                                                incoming_account.commodity_guid)?,
+            "@commodity_scu" : incoming_account.commodity_scu,
+            "@non_std_scu" : incoming_account.non_std_scu,
+            "@parent_guid" : dhu::convert_guid_to_sqlite_parameter(
+                                                incoming_account.parent_guid)?,
+            "@code" : incoming_account.code,
+            "@description" : incoming_account.description,
+            "@hidden" : if incoming_account.hidden == false {0} else {1},
+            "@placeholder" : if incoming_account.placeholder == false {0} else {1},
+        }
+        ).unwrap();    
+
+    
+    if result != 1 {
+        panic!(format!("There were {0} record changes instead of just 1!",
+                        result.to_string())
+        );
+    }
+
+    Ok(true)
+    
+}
+
 pub fn save_new(file_path : &str, incoming_account : &Account) -> Result<bool> {
     //Attempt to open the file from the given path to perform this operation
     let conn = Connection::open(file_path)?;
