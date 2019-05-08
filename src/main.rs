@@ -5,8 +5,12 @@
 extern crate sciter;
 extern crate rusqlite;
 extern crate chrono;
+extern crate meval;
+
 
 mod accounts_manager;
+mod books_manager;
+mod commodities_manager;
 mod database_helper_utility;
 mod sciter_helper_utility;
 
@@ -24,23 +28,86 @@ fn main() -> Result<()> {
 
     if std::fs::metadata(file_path).is_ok() {
         html_string = String::from("<html>");
-        let accounts = accounts_manager::retrieve_by_guid(file_path, 
-                                                          dhu::convert_string_to_guid(
-                                                              "f737a4904dac6736c7d8fe7b765ee354".to_string())
-                                                          .expect("bad guid"))
-                        .expect(&"Error Finding File!");
+        // let accounts = accounts_manager::retrieve_top_account_by_name(file_path, 
+        //                                                   "Root Account".to_string())
+        //                 .expect(&"Error Finding File!");
         
-        for account in accounts {
-            html_string = [html_string,
-                          account.name,
-                          String::from(" ")].join(", ");
+        // for account in accounts {
+        //     html_string = [html_string,
+        //                   account.name,
+        //                   String::from(" ")].join(", ");
             
+        // }
+        
+        let mut account : accounts_manager::Account = accounts_manager::Account{
+            guid : GUID::rand(),
+            name : String::from("Squirrel"),
+            account_type: accounts_manager::AccountType::ROOT, //Account_Type is the account type. (Ex: 'ROOT' or 'CREDIT')
+            commodity_guid: dhu::_null_guid(),//Commodity_Guid is the commodity guid the account uses. Ex: USD or YEN.
+            commodity_scu: 0,//Commodity_Scu is the commodity scu. -1 by default
+            non_std_scu: 0, //Non_Std_Scu is the non std scu. -1 by default
+            parent_guid: dhu::_null_guid(), //Parent_Guid is the parent of this account's GUID. null guid by default
+            code: String::from("Code Description!"), //Code is the code for this account. Blank by default
+            description: String::from("Description Value --"), //Description is the description for this account. Blank by default.
+            hidden: false, //Hidden is a bit field whether this account is hidden or not.
+            placeholder: true,//Placeholder is whether this account is a placeholder account. (1 for yes, 0 for no)
+
+        };
+        
+
+        let result = accounts_manager::save_new(file_path, &account);
+        
+        match result {
+            Ok(_) => {
+                html_string = [html_string,
+                               format!("We have successfully created '{0}'", 
+                               &account.name.to_string())].join("");
+                
+            },
+            Err(e) => {
+                panic!(println!("Error! {0}",e));
+            }
         }
+
+        account.name = [account.name.to_string(), String::from("-Modified!")].join("");
+
+        let second_result = accounts_manager::update_existing(file_path, &account);
+
+        match second_result {
+            Ok(_) => {
+                html_string = [html_string,
+                               format!("We have successfully edited the name to '{0}'", 
+                               &account.name.to_string())].join("");
+                
+            },
+            Err(e) => {
+                panic!(println!("Error! {0}",e));
+            }
+        }
+
+        let third_result = accounts_manager::delete_existing(file_path, account.guid);
+
+        match third_result {
+            Ok(_) => {
+                html_string = [html_string,
+                               format!("We have successfully deleted the record with GUID '{0}'", 
+                               &account.guid.to_string())].join("");
+                
+            },
+            Err(e) => {
+                panic!(println!("Error! {0}",e));
+            }
+        }
+
         html_string = [html_string,
                       String::from("</html>")].join("");
     }
 
-    
+    let path = std::path::Path::new(file_path);
+    let result_of_file_operation = dhu::make_backup_copies_of_file(path, 2);
+    if result_of_file_operation.is_err() {
+        panic!(format!("There was an Error: '{:#?}'.", result_of_file_operation.err()));
+    }
     println!("Here's a null guid '{0}'", dhu::_null_guid());
 
     let dt : NaiveDateTime = Local::now().naive_local();
