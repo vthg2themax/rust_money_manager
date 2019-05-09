@@ -5,6 +5,7 @@ use guid_create::GUID;
 use chrono::prelude::*;
 use rusqlite::*;
 use rusqlite::types::*;
+use regex::Regex;
 
 const FORMAT_STRING : &str = "%Y%m%d%H%M%S";
 
@@ -132,16 +133,16 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
         );
     }
 
-    //Get all the files that end with bak files in the directory
-    let file_ending = ".bak";
+    //Get all the files that end with ([0-9]).bak files in the directory
+    let re = Regex::new(r"^.*[(](\d+)[)][.][Bb][Aa][Kk]$").unwrap();
     let mut files_that_match : Vec<String> = Vec::new();
     //Get the other files in the directory
     let files = std::fs::read_dir(incoming_file_path.parent()
                                             .expect("bad path")).expect("Badder Path!");
     for file in files {
         let filename : String = file.unwrap().path().file_name().unwrap().to_str().unwrap().into();
-        if filename.ends_with(file_ending) == true {
-            files_that_match.push(filename);
+        if re.is_match(&filename) {
+            files_that_match.push(filename.clone());
         }
     }
 
@@ -149,8 +150,10 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
     //The larger the number, the older the file, we set the date modified on .bak 
     //files to when the bak file was created at
     //If there's not a *(0).bak file name, then we need to create it
-    if files_that_match.contains( &[incoming_file_path.to_str().expect("Invalid Path!"), 
-                                    "(0).bak"].join("")) == false {
+    if files_that_match.contains( &[incoming_file_path.file_name()
+                                    .expect("Bad File name From OSStr!")
+                                    .to_str().expect("Invalid OSStr Slice!"), 
+                "(0).bak"].join("")) == false {
         //Copy the original file to original file + "(0).bak"
         std::fs::copy(incoming_file_path, 
                       &[incoming_file_path.to_str().expect("Invalid Path!"), 
@@ -163,10 +166,33 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
     //will be more than the backup amount. Backup files are created: (0).bak -> (X).bak
     if files_that_match.len()  >= (number_of_copies as usize) {
         //Delete all older .bak files greater than number_of_copies
-        for file in files_that_match.iter() {
+        for file in &mut files_that_match {
             //Attempt to get the filename number to check against
-            file.chars().position(|c| c == 'g').unwrap()
+            let backup_number : u8 = re.captures_iter(&file).next()
+                                    .expect("Backup Number Not Found!")[1]
+                                    .parse::<u8>()
+                                    .expect("Backup Number Not Actually Number!");
+                       
+            println!("Backup Number is: '{:#?}' for file '{1}'.",
+                    backup_number, file.as_str());
+
+            if backup_number > number_of_copies {
+                let file_path = std::path::Path::new(incoming_file_path.parent()
+                                    .expect("Invalid File Path!")
+                                    .to_str().expect("Invalid File Path!"))
+                                    .join(file);
+
+                match std::fs::remove_file(&file_path) {
+                    Ok(_) => {println!{"Deleted file: '{:#?}'", &file_path}},
+                    Err(e) => {println!("{0}",e);},
+                }
+            }
+            //Regex::new(r"(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})").unwrap();
+            //let re = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
+            //assert!(re.is_match("2014-01-01"));
+            //file.chars().position(|c| c == 'g').unwrap()
         }
+
     } else {
 
     }
