@@ -119,7 +119,7 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
 
     let file_information = std::fs::metadata(incoming_file_path);
 
-    //Ensure this is a directory we can reach
+    //Ensure this is in a directory we can reach
     if file_information.is_err() == true {
         let error_message : String = 
                             format!("The given directory is not a valid result. {:#?}", 
@@ -133,14 +133,28 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
         );
     }
 
+    //Get the file name for this file without the (0).bak piece
+    let base_file_name: String = String::from(incoming_file_path.file_name()
+                                              .expect("Invalid File Name!")
+                                              .to_str()
+                                              .expect("Invalid File Name!"));
+    //Get the parent directory for this file as an easy to use string
+    let directory_file_path: String = String::from(
+                                        incoming_file_path.parent()
+                                        .expect("bad directory file path").to_str()
+                                        .expect(&["Directory File Path could not ",
+                                                  "be converted to string."].join("")));
+
     //Get all the files that end with ([0-9]).bak files in the directory
     let re = Regex::new(r"^.*[(](\d+)[)][.][Bb][Aa][Kk]$").unwrap();
     let mut files_that_match : Vec<String> = Vec::new();
     //Get the other files in the directory
-    let files = std::fs::read_dir(incoming_file_path.parent()
-                                            .expect("bad path")).expect("Badder Path!");
+    let files = std::fs::read_dir(&directory_file_path)
+                                .expect("Failed To Read Directory!");
+    
     for file in files {
-        let filename : String = file.unwrap().path().file_name().unwrap().to_str().unwrap().into();
+        let filename : String = file.unwrap().path().file_name().unwrap()
+                                    .to_str().unwrap().into();
         if re.is_match(&filename) {
             files_that_match.push(filename.clone());
         }
@@ -150,10 +164,7 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
     //The larger the number, the older the file, we set the date modified on .bak 
     //files to when the bak file was created at
     //If there's not a *(0).bak file name, then we need to create it
-    if files_that_match.contains( &[incoming_file_path.file_name()
-                                    .expect("Bad File name From OSStr!")
-                                    .to_str().expect("Invalid OSStr Slice!"), 
-                "(0).bak"].join("")) == false {
+    if files_that_match.contains(&[&base_file_name,"(0).bak"].join("")) == false {
         //Copy the original file to original file + "(0).bak"
         std::fs::copy(incoming_file_path, 
                       &[incoming_file_path.to_str().expect("Invalid Path!"), 
@@ -175,12 +186,12 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
                        
             println!("Backup Number is: '{:#?}' for file '{1}'.",
                     backup_number, file.as_str());
-
-            if backup_number > number_of_copies {
+            //If the backup file number is large enough, we delete the file
+            if backup_number >= number_of_copies {
                 let file_path = std::path::Path::new(incoming_file_path.parent()
                                     .expect("Invalid File Path!")
-                                    .to_str().expect("Invalid File Path!"))
-                                    .join(file);
+                                    .to_str().expect("Invalid File Path!")
+                                    ).join(file);
 
                 match std::fs::remove_file(&file_path) {
                     Ok(_) => {println!{"Deleted file: '{:#?}'", &file_path}},
@@ -193,62 +204,86 @@ pub fn make_backup_copies_of_file(incoming_file_path : &std::path::Path,
             //file.chars().position(|c| c == 'g').unwrap()
         }
 
-    } else {
+        //Now that we have deleted some files, we need to rescan the files that match
+        files_that_match.clear();
+        let files = std::fs::read_dir(&directory_file_path).expect("Failed To Read Directory!");
+        for file in files {
+            let filename : String = file.unwrap().path().file_name().unwrap().to_str().unwrap().into();
+            if re.is_match(&filename) {
+                files_that_match.push(filename.clone());
+            }
+        }
+    }    
+
+    //Sort the files by backup number descending
+    files_that_match.sort_by(|a, b| 
+        {   let this_filename = a;
+            let next_filename = b;
+            let this_number : u8 = re.captures_iter(&this_filename).next()
+                                .expect("Backup Number Not Found!")[1]
+                                .parse::<u8>()
+                                .expect("Backup Number Not Actually Number!");
+            let next_number : u8 = re.captures_iter(&next_filename).next()
+                                .expect("Backup Number Not Found!")[1]
+                                .parse::<u8>()
+                                .expect("Backup Number Not Actually Number!");
+            next_number.cmp(&this_number)
+        }
+    );
+
+    //Now we can move the files along higher to lower
+    // Lets say we have the following files: (2).bak, (1).bak, (0).bak
+    // We should get each of the backup numbers, such as the oldest file (2).bak,
+    // and then rename it to (X+1).bak, all the way down until we get to (0).bak, 
+    // (which is renamed to (1).bak). At this point, we simply create the (0).bak file from the curent file.    
+    for file in &mut files_that_match {
+        //Attempt to get the filename number to check against
+        let backup_number : u8 = re.captures_iter(&file).next()
+                                .expect("Backup Number Not Found!")[1]
+                                .parse::<u8>()
+                                .expect("Backup Number Not Actually Number!");
+                    
+        println!("Backup Number is: '{:#?}' for file '{1}'.", backup_number, &file.as_str());
+
+        //rename the file X+1
+        let old_file_path = std::path::Path::new(&directory_file_path).join(&file);
+        let new_file_path = std::path::Path::new(&directory_file_path)
+                                .join(
+                                    &[&base_file_name,"(",&(backup_number+1).to_string(),").bak"].join("")
+                                );
+        match std::fs::rename(&old_file_path, &new_file_path) {
+            Ok(_) => {println!{"Renamed file: '{:#?}' to '{:#?}'.", &old_file_path, &new_file_path}},
+            Err(e) => {println!("{0}",e);},
+        }
 
     }
     
+    //Finally we copy the current file to (0).bak to complete the backup process
+    std::fs::copy(incoming_file_path, &[incoming_file_path.to_str().expect("Invalid Path!"), "(0).bak"].join(""))
+            .expect("Failed To Copy The (0).bak file.");
+
     Ok(true)
     
 }
 
-//                '
-//  For index As Integer = (numberOfCopies - 1) To (filesThatMatch.Count - 1) Step 1
-//                    Dim currentFileName As String = fileNameAndPath & "(" & index.ToString & ").bak"
-//                    filesThatMatch.Remove(currentFileName)
-//                    My.Computer.FileSystem.DeleteFile(currentFileName, FileIO.UIOption.OnlyErrorDialogs, FileIO.RecycleOption.SendToRecycleBin)
-//                Next
-//
-//                'Now we can move the files along higher to lower
-//                For currentFileNumber As Integer = (numberOfCopies - 2) To 0 Step -1
-//                    Dim currentFileName As String = fileNameAndPath & "(" & currentFileNumber.ToString & ").bak"
-//                    My.Computer.FileSystem.MoveFile(fileNameAndPath & "(" & currentFileNumber & ").bak",
-//                        fileNameAndPath & "(" & (currentFileNumber + 1) & ").bak")
-//                Next
-//
-//                ' and now the last one *(0).bak
-//                My.Computer.FileSystem.CopyFile(fileNameAndPath, fileNameAndPath & "(0).bak")
-//                IO.File.SetLastWriteTime(fileNameAndPath & "(0).bak", Now)
-//            Else
-//                'Make a backup copy
-//                'Now we can move the files along higher to lower
-//                For currentFileNumber As Integer = filesThatMatch.Count To 1 Step -1
-//                    Dim currentFileName As String = fileNameAndPath & "(" & currentFileNumber.ToString & ").bak"
-//                    My.Computer.FileSystem.MoveFile(fileNameAndPath & "(" & currentFileNumber - 1 & ").bak",
-//                        fileNameAndPath & "(" & (currentFileNumber) & ").bak")
-//                Next
-//
-//                ' and now the last one *(0).bak
-//                My.Computer.FileSystem.CopyFile(fileNameAndPath, fileNameAndPath & "(0).bak")
-//                IO.File.SetLastWriteTime(fileNameAndPath & "(0).bak", Now)
-//            End If
-//            returnValue = True
-//        Catch ex As Exception
-//            'Try to delete the older files to start this process over
-//            'Get all the bak files in the directory.
-//            Dim directory As String = My.Computer.FileSystem.GetFileInfo(fileNameAndPath).DirectoryName
-//            Dim filesInDirectory As System.Collections.ObjectModel.ReadOnlyCollection(Of String) =
-//                    My.Computer.FileSystem.GetFiles(directory)
-//            'Get list of applicable filenames                
-//            Dim filesThatMatch As New ArrayList
-//            For Each fileName As String In filesInDirectory
-//                If fileName.EndsWith(fileEnding) = True Then
-//                    My.Computer.FileSystem.DeleteFile(fileName, FileIO.UIOption.OnlyErrorDialogs,
-//                                                      FileIO.RecycleOption.SendToRecycleBin)
-//                End If
-//            Next
-//        End Try
-//        Return returnValue
-//    End Function
+#[cfg(test)]
+mod tests {
+    //use super::*;
+
+    // #[test]
+    // fn this_test_will_pass() {
+    //     make_backup_copies_of_file(incoming_file_path: &std::path::Path, number_of_copies: u8)
+    //     let value = prints_and_returns_10(4);
+    //     assert_eq!(10, value);
+    // }
+
+    #[test]
+    fn this_test_will_fail() {
+        let value = 8;
+        assert_eq!(5, value);
+    }
+}
+
 //
 //    ''' <summary>
 //    ''' CreateNewGnuCashFileAndGetConnectionString creates a new file in the given location, and returns

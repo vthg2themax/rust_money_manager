@@ -104,7 +104,7 @@ fn main() -> Result<()> {
     }
 
     let path = std::path::Path::new(file_path);
-    let result_of_file_operation = dhu::make_backup_copies_of_file(path, 2);
+    let result_of_file_operation = dhu::make_backup_copies_of_file(path, 7);
     if result_of_file_operation.is_err() {
         panic!(format!("There was an Error: '{:#?}'.", result_of_file_operation.err()));
     }
