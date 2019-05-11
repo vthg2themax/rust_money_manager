@@ -102,9 +102,9 @@ fn main() -> Result<()> {
         html_string = [html_string,
                       String::from("</html>")].join("");
     }
-
-    let path = std::path::Path::new(file_path);
-    let result_of_file_operation = dhu::make_backup_copies_of_file(path, 7);
+    
+    let path = std::path::Path::new("/home/vince/Documents/new_test_file.sqlite");
+    let result_of_file_operation = dhu::create_new_gnucash_file(path);
     if result_of_file_operation.is_err() {
         panic!(format!("There was an Error: '{:#?}'.", result_of_file_operation.err()));
     }
