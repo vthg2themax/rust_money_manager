@@ -5,7 +5,8 @@ use guid_create::GUID;
 use chrono::prelude::*;
 use rusqlite::{Connection, Result, NO_PARAMS};
 use regex::Regex;
-use crate::commodities_manager;
+use crate::{accounts_manager,books_manager,commodities_manager,versions_manager};
+
 
 const FORMAT_STRING : &str = "%Y%m%d%H%M%S";
 
@@ -701,11 +702,608 @@ pub fn create_new_gnucash_file(incoming_file_path_with_file_name : &std::path::P
         }
     }
 
-    //Created the Starter USD Commodity
+    //Create the Starter USD Commodity
     {
         let sql = ["INSERT INTO commodities(", &String::from(commodities_manager::_fields()), ") ",
                    "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap() , "',", 
                    "'CURRENCY','USD','US Dollar','840',100,1,'currency','');"].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create the Root Account with information for first commodity
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Root Account','ROOT',NULL,0,0,NULL,'','',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+
+    //Create Template Root Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Template Root','ROOT',NULL,0,0,NULL,'','',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Assets Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Assets','ASSET',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Root Account'),",
+                   "'','Assets',0,1); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Checking Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Checking Account','ASSET',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Assets'),",
+                   "'','',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Expenses Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Expenses','EXPENSE',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Root Account'),",
+                   "'','Expenses',0,1); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create Groceries Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Groceries','EXPENSE',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Expenses'),",
+                   "'','Groceries',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Dining Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Dining','EXPENSE',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Expenses'),",
+                   "'','Dining',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create Liabilities Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Liabilities','LIABILITY',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='LIABILITY'),",
+                   "'','Liabilities',0,1); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Credit Card Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Credit Card','CREDIT',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Liabilities'),",
+                   "'','Credit Card',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Auto Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Auto','EXPENSE',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Expenses'),",
+                   "'','Auto',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Gas Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Gas','EXPENSE',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Auto'),",
+                   "'','Gas',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Income Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Income','INCOME',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Root Account'),",
+                   "'','Income',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Salary Income Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Salary','INCOME',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Income'),",
+                   "'','Salary',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Sales Income Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Sales','INCOME',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Income'),",
+                   "'','Sales',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Bonus Income Account
+    {
+        let sql = ["INSERT INTO accounts(", &String::from(accounts_manager::_fields()), ") ",
+                   "VALUES('", &convert_guid_to_sqlite_string(GUID::rand()).unwrap(), "',",
+                   "'Bonus','INCOME',(SELECT guid FROM commodities WHERE cusip='840'),",
+                   "100,0,(SELECT guid FROM accounts WHERE name='Income'),",
+                   "'','Bonus',0,0); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Gnucash row
+    {
+        let gnu_cash_version = "2060600";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('Gnucash','", &String::from(gnu_cash_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create Gnucash-Resave row
+    {
+        let gnu_cash_resize_version = "19920";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('Gnucash-Resave','", &String::from(gnu_cash_resize_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create accounts row
+    {
+        let accounts_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('accounts','", &String::from(accounts_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create books row
+    {
+        let books_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('books','", &String::from(books_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create budgets row
+    {
+        let budgets_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('budgets','", &String::from(budgets_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create budget_amounts row
+    {
+        let budget_amounts_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('budget_amounts','", &String::from(budget_amounts_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create commodities row
+    {
+        let commodities_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('commodities','", &String::from(commodities_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create lots row
+    {
+        let lots_version = "2";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('lots','", &String::from(lots_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create prices row
+    {
+        let prices_version = "2";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('prices','", &String::from(prices_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create schedxactions row
+    {
+        let schedxactions_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('schedxactions','", &String::from(schedxactions_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create transactions row
+    {
+        let transactions_version = "3";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('transactions','", &String::from(transactions_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create splits row
+    {
+        let splits_version = "4";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('splits','", &String::from(splits_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create billterms row
+    {
+        let billterms_version = "2";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('billterms','", &String::from(billterms_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create customers row
+    {
+        let customers_version = "2";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('customers','", &String::from(customers_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create employees row
+    {
+        let employees_version = "2";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('employees','", &String::from(employees_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create entries row
+    {
+        let entries_version = "3";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('entries','", &String::from(entries_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create invoices row
+    {
+        let invoices_version = "3";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('invoices','", &String::from(invoices_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create jobs row
+    {
+        let jobs_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('jobs','", &String::from(jobs_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create orders row
+    {
+        let orders_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('orders','", &String::from(orders_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create taxtables row
+    {
+        let taxtables_version = "2";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('taxtables','", &String::from(taxtables_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create taxtable_entries row
+    {
+        let taxtable_entries_version = "3";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('taxtable_entries','", &String::from(taxtable_entries_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create vendors row
+    {
+        let vendors_version = "1";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('vendors','", &String::from(vendors_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create recurrences row
+    {
+        let recurrences_version = "2";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('recurrences','", &String::from(recurrences_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+    
+    //Create slots row
+    {
+        let slots_version = "3";
+        
+        let sql = ["INSERT INTO versions(", &String::from(versions_manager::_fields()), ") ",
+                   "VALUES('slots','", &String::from(slots_version),
+                   "'); "].join("");
+        match tx.execute(&sql,NO_PARAMS) {
+            Ok(_) => {  },
+            Err(e) => {
+                return Err(format!("There was an error executing the transaction. {}",e));
+            },
+        }
+    }
+
+    //Create the books record
+    {                   
+        let sql = ["INSERT INTO books(", &String::from(books_manager::_fields()), ") ",
+                   "VALUES('",&convert_guid_to_sqlite_string(GUID::rand()).unwrap(),"',",
+                   "  (SELECT guid FROM accounts WHERE accounts.name='Root Account'),",
+                   "  (SELECT guid FROM accounts WHERE accounts.name='Template Root')",
+                   "); "].join("");
         match tx.execute(&sql,NO_PARAMS) {
             Ok(_) => {  },
             Err(e) => {
@@ -730,345 +1328,3 @@ pub fn create_new_gnucash_file(incoming_file_path_with_file_name : &std::path::P
 
     Ok(true)
 }
-
-//            
-//            SQLcommand.CommandText &= CreateStarterAccountsSQL()
-//            SQLcommand.CommandText &= CreateStarterVersionsSQL()
-//            SQLcommand.CommandText &= CreateStarterBookRecordSQL()
-//
-//
-//            Dim SQLreader As SQLiteDataReader = SQLcommand.ExecuteReader()
-//            SQLcommand.Dispose()
-//            SQLconnect.Close()
-//            connectionString = SQLconnect.ConnectionString
-//            returnValue = True
-//        Catch ex As Exception
-//            Console.WriteLine("Error creating New file." & vbCrLf & ex.ToString())
-//        End Try
-//        Return returnValue
-//    End Function
-
-//
-//    ''' <summary>
-//    ''' CreateStarterAccounts creates a starter checking account, and a starter root account.
-//    ''' </summary>
-//    ''' <remarks></remarks>
-//    Private Function CreateStarterAccountsSQL() As String
-//        Dim returnValue As String = ""
-//        Dim commoditiesManager As New CommoditiesManager("")
-//        Dim USDcommodityGUID As String = commoditiesManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue = "INSERT INTO commodities(" & commoditiesManager._Fields & ") " &
-//                                        "VALUES('" & (USDcommodityGUID) & "'," &
-//                                      "'" & commoditiesManager.CommodityNamespace_Currency & "','USD','US Dollar'," &
-//                                      "'840',100,1,'" & commoditiesManager.CommodityTypes_Currency & "','');  "
-//
-//        'Create Root Account with information for first commodity
-//        Dim rootAccountManager As New AccountsManager("")
-//        Dim rootAccountGUID As String = rootAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & rootAccountManager._Fields & ") " &
-//                                        "VALUES('" & rootAccountGUID & "','Root Account'," &
-//                                      "'" & rootAccountManager.Account_Type_Root & "',NULL, " &
-//                                      "0,0,NULL,'','',0,0);  "
-//        'Create Template Root Account
-//        Dim rootTemplateAccountsManager As New AccountsManager("")
-//        Dim templateRootAccountGUID As String = rootTemplateAccountsManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & rootAccountManager._Fields & ") " &
-//                                        "VALUES('" & templateRootAccountGUID & "','Template Root'," &
-//                                      "'" & rootAccountManager.Account_Type_Root & "',NULL, " &
-//                                      "0,0,NULL,'','',0,0);  "
-//
-//        'Create Assets Account
-//        Dim assetsAccountManager As New AccountsManager("")
-//        Dim assetsAccountGUID As String = assetsAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & rootAccountManager._Fields & ") " &
-//                                        "VALUES('" & assetsAccountGUID & "','Assets'," &
-//                                      "'" & rootAccountManager.Account_Type_Asset & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & rootAccountGUID & "','','Assets',0,1);  "
-//
-//        'Create Checking Account
-//        Dim checkingAccountManager As New AccountsManager("")
-//        Dim checkingAccountGUID As String = assetsAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & rootAccountManager._Fields & ") " &
-//                                        "VALUES('" & checkingAccountGUID & "','Checking Account'," &
-//                                      "'" & rootAccountManager.Account_Type_Asset & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & assetsAccountGUID & "','','',0,0);  "
-//
-//        'Create Expenses Account
-//        Dim expensesAccountManager As New AccountsManager("")
-//        Dim expensesAccountGUID As String = expensesAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & rootAccountManager._Fields & ") " &
-//                                        "VALUES('" & expensesAccountGUID & "','Expenses'," &
-//                                      "'" & rootAccountManager.Account_Type_Expense & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & rootAccountGUID & "','','Expenses',0,1);  "
-//
-//        'Create Groceries Account
-//        Dim groceriesAccountManager As New AccountsManager("")
-//        Dim groceriesAccountGUID As String = groceriesAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & groceriesAccountManager._Fields & ") " &
-//                                        "VALUES('" & groceriesAccountGUID & "','Groceries'," &
-//                                      "'" & rootAccountManager.Account_Type_Expense & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & expensesAccountGUID & "','','Groceries',0,0);  "
-//
-//        'Create Dining Account
-//        Dim diningAccountManager As New AccountsManager("")
-//        Dim diningAccountGUID As String = diningAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & diningAccountManager._Fields & ") " &
-//                                        "VALUES('" & diningAccountGUID & "','Dining'," &
-//                                      "'" & rootAccountManager.Account_Type_Expense & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & expensesAccountGUID & "','','Dining',0,0);  "
-//
-//        'Create Liabilities Account
-//        Dim liabilitiesAccountManager As New AccountsManager("")
-//        Dim liabilitiesAccountGUID As String = liabilitiesAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & liabilitiesAccountManager._Fields & ") " &
-//                                        "VALUES('" & liabilitiesAccountGUID & "','Liabilities'," &
-//                                      "'" & rootAccountManager.Account_Type_Liability & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & rootAccountGUID & "','','Liabilities',0,1);  "
-//
-//        'Create Credit Card Account
-//        Dim creditCardAccountManager As New AccountsManager("")
-//        Dim creditCardAccountGUID As String = creditCardAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & creditCardAccountManager._Fields & ") " &
-//                                        "VALUES('" & creditCardAccountGUID & "','Credit Card'," &
-//                                      "'" & rootAccountManager.Account_Type_Credit & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & liabilitiesAccountGUID & "','','Credit Card',0,0);  "
-//
-//        'Create Auto Account
-//        Dim autoAccountManager As New AccountsManager("")
-//        Dim autoAccountGUID As String = autoAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & autoAccountManager._Fields & ") " &
-//                                        "VALUES('" & autoAccountGUID & "','Auto'," &
-//                                      "'" & rootAccountManager.Account_Type_Expense & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & expensesAccountGUID & "','','Auto',0,0);  "
-//
-//        'Create Gas Account
-//        Dim autoGasAccountManager As New AccountsManager("")
-//        Dim autoGasAccountGUID As String = autoGasAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & autoGasAccountManager._Fields & ") " &
-//                                        "VALUES('" & autoGasAccountGUID & "','Gas'," &
-//                                      "'" & rootAccountManager.Account_Type_Expense & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & autoAccountGUID & "','','Gas',0,0);  "
-//
-//        'Create Income Account
-//        Dim incomeAccountManager As New AccountsManager("")
-//        Dim incomeAccountGUID As String = incomeAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & incomeAccountManager._Fields & ") " &
-//                                        "VALUES('" & incomeAccountGUID & "','Income'," &
-//                                      "'" & rootAccountManager.Account_Type_Income & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & rootAccountGUID & "','','Income',0,0);  "
-//
-//        'Create Salary Income Account
-//        Dim incomeSalaryAccountManager As New AccountsManager("")
-//        Dim incomeSalaryAccountGUID As String = incomeSalaryAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & incomeSalaryAccountManager._Fields & ") " &
-//                                        "VALUES('" & incomeSalaryAccountGUID & "','Salary'," &
-//                                      "'" & rootAccountManager.Account_Type_Income & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & incomeAccountGUID & "','','Salary',0,0);  "
-//
-//        'Create Sales Income Account
-//        Dim incomeSalesAccountManager As New AccountsManager("")
-//        Dim incomeSalesAccountGUID As String = incomeSalesAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & incomeSalesAccountManager._Fields & ") " &
-//                                        "VALUES('" & incomeSalesAccountGUID & "','Sales'," &
-//                                      "'" & rootAccountManager.Account_Type_Income & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & incomeAccountGUID & "','','Sales',0,0);  "
-//
-//        'Create Bonus Income Account
-//        Dim incomeBonusAccountManager As New AccountsManager("")
-//        Dim incomeBonusAccountGUID As String = incomeBonusAccountManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "INSERT INTO accounts(" & incomeBonusAccountManager._Fields & ") " &
-//                                        "VALUES('" & incomeBonusAccountGUID & "','Bonus'," &
-//                                      "'" & rootAccountManager.Account_Type_Income & "','" & USDcommodityGUID & "', " &
-//                                      "100,0,'" & incomeAccountGUID & "','','Bonus',0,0);  "
-//
-//        Return returnValue
-//    End Function
-//
-//    ''' <summary>
-//    ''' CreateStarterVersionsTable creates all the entries for the versions table.
-//    ''' </summary>
-//    ''' <remarks></remarks>
-//    Private Function CreateStarterVersionsSQL() As String
-//        Dim returnValue As String = ""
-//        'Create Gnucash row
-//        Dim GnuCashVersion As String = "2060600"
-//        Dim GnucashVersionManager As New VersionsManager("")
-//        returnValue &= "INSERT INTO versions(" & GnucashVersionManager._Fields & ") " &
-//                                        "VALUES('Gnucash','" & GnuCashVersion & "'); "
-//
-//        'Create Gnucash-Resave row
-//        Dim GnucashResaveVersion As String = "19920"
-//        Dim GnucashResaveVersionManager As New VersionsManager("")
-//        returnValue &= "INSERT INTO versions(" & GnucashResaveVersionManager._Fields & ") " &
-//                                        "VALUES('Gnucash-Resave','" & GnucashResaveVersion & "'); "
-//
-//        'Create accounts row
-//        Dim accountsVersionManager As New VersionsManager("")
-//        Dim accountsVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & accountsVersionManager._Fields & ") " &
-//                                        "VALUES('accounts','" & accountsVersion & "'); "
-//
-//        'Create books row
-//        Dim booksVersionManager As New VersionsManager("")
-//        Dim booksVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & booksVersionManager._Fields & ") " &
-//                                        "VALUES('books','" & booksVersion & "'); "
-//
-//        'Create budgets row
-//        Dim budgetsVersionManager As New VersionsManager("")
-//        Dim budgetsVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & budgetsVersionManager._Fields & ") " &
-//                                        "VALUES('budgets','" & budgetsVersion & "'); "
-//
-//        'Create budget_amounts row
-//        Dim budget_amountsVersionManager As New VersionsManager("")
-//        Dim budgetAmountsVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & booksVersionManager._Fields & ") " &
-//                                        "VALUES('budget_amounts','" & budgetAmountsVersion & "'); "
-//
-//        'Create commodities row
-//        Dim commoditiesVersionManager As New VersionsManager("")
-//        Dim commoditiesVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & commoditiesVersionManager._Fields & ") " &
-//                                        "VALUES('commodities','" & commoditiesVersion & "'); "
-//
-//        'Create lots row
-//        Dim lotsVersionManager As New VersionsManager("")
-//        Dim lotsVersion As String = "2"
-//        returnValue &= "INSERT INTO versions(" & lotsVersionManager._Fields & ") " &
-//                                        "VALUES('lots','" & lotsVersion & "'); "
-//
-//        'Create prices row
-//        Dim pricesVersionManager As New VersionsManager("")
-//        Dim pricesVersion As String = "2"
-//        returnValue &= "INSERT INTO versions(" & pricesVersionManager._Fields & ") " &
-//                                        "VALUES('prices','" & pricesVersion & "'); "
-//
-//        'Create schedxactions row
-//        Dim schedxactionsVersionManager As New VersionsManager("")
-//        Dim schedxactionsVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & schedxactionsVersionManager._Fields & ") " &
-//                                        "VALUES('schedxactions','" & schedxactionsVersion & "'); "
-//
-//        'Create transactions row
-//        Dim transactionsVersionManager As New VersionsManager("")
-//        Dim transactionsVersion As String = "3"
-//        returnValue &= "INSERT INTO versions(" & transactionsVersionManager._Fields & ") " &
-//                                        "VALUES('transactions','" & transactionsVersion & "'); "
-//
-//        'Create splits row
-//        Dim splitsVersionManager As New VersionsManager("")
-//        Dim splitsVersion As String = "4"
-//        returnValue &= "INSERT INTO versions(" & splitsVersionManager._Fields & ") " &
-//                                        "VALUES('splits','" & splitsVersion & "'); "
-//
-//        'Create billterms row
-//        Dim billtermsVersionManager As New VersionsManager("")
-//        Dim billtermsVersion As String = "2"
-//        returnValue &= "INSERT INTO versions(" & billtermsVersionManager._Fields & ") " &
-//                                        "VALUES('billterms','" & billtermsVersion & "'); "
-//
-//        'Create customers row
-//        Dim customersVersionManager As New VersionsManager("")
-//        Dim customersVersion As String = "2"
-//        returnValue &= "INSERT INTO versions(" & customersVersionManager._Fields & ") " &
-//                                        "VALUES('customers','" & customersVersion & "'); "
-//
-//        'Create employees row
-//        Dim employeesVersionManager As New VersionsManager("")
-//        Dim employeesVersion As String = "2"
-//        returnValue &= "INSERT INTO versions(" & employeesVersionManager._Fields & ") " &
-//                                        "VALUES('employees','" & employeesVersion & "'); "
-//
-//        'Create entries row
-//        Dim entriesVersionManager As New VersionsManager("")
-//        Dim entriesVersion As String = "3"
-//        returnValue &= "INSERT INTO versions(" & entriesVersionManager._Fields & ") " &
-//                                        "VALUES('entries','" & entriesVersion & "'); "
-//
-//        'Create invoices row
-//        Dim invoicesVersionManager As New VersionsManager("")
-//        Dim invoicesVersion As String = "3"
-//        returnValue &= "INSERT INTO versions(" & invoicesVersionManager._Fields & ") " &
-//                                        "VALUES('invoices','" & invoicesVersion & "'); "
-//
-//        'Create jobs row
-//        Dim jobsVersionManager As New VersionsManager("")
-//        Dim jobsVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & jobsVersionManager._Fields & ") " &
-//                                        "VALUES('jobs','" & jobsVersion & "'); "
-//
-//        'Create orders row
-//        Dim ordersVersionManager As New VersionsManager("")
-//        Dim ordersVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & ordersVersionManager._Fields & ") " &
-//                                        "VALUES('orders','" & ordersVersion & "'); "
-//
-//        'Create taxtables row
-//        Dim taxtablesVersionManager As New VersionsManager("")
-//        Dim taxtablesVersion As String = "2"
-//        returnValue &= "INSERT INTO versions(" & taxtablesVersionManager._Fields & ") " &
-//                                        "VALUES('taxtables','" & taxtablesVersion & "'); "
-//
-//        'Create taxtable_entries row
-//        Dim taxtable_entriesVersionManager As New VersionsManager("")
-//        Dim taxtable_entriesVersion As String = "3"
-//        returnValue &= "INSERT INTO versions(" & taxtable_entriesVersionManager._Fields & ") " &
-//                                        "VALUES('taxtable_entries','" & taxtable_entriesVersion & "'); "
-//
-//        'Create vendors row
-//        Dim vendorsVersionManager As New VersionsManager("")
-//        Dim vendorsVersion As String = "1"
-//        returnValue &= "INSERT INTO versions(" & vendorsVersionManager._Fields & ") " &
-//                                        "VALUES('vendors','" & vendorsVersion & "'); "
-//
-//        'Create recurrences row
-//        Dim recurrencesVersionManager As New VersionsManager("")
-//        Dim recurrencesVersion As String = "2"
-//        returnValue &= "INSERT INTO versions(" & recurrencesVersionManager._Fields & ") " &
-//                                        "VALUES('recurrences','" & recurrencesVersion & "'); "
-//
-//        'Create slots row
-//        Dim slotsVersionManager As New VersionsManager("")
-//        Dim slotsVersion As String = "3"
-//        returnValue &= "INSERT INTO versions(" & slotsVersionManager._Fields & ") " &
-//                                        "VALUES('slots','" & slotsVersion & "'); "
-//        Return returnValue
-//    End Function
-//
-//
-//    ''' <summary>
-//    ''' CreateStarterBookRecordSQL creates the starter book record.
-//    ''' </summary>
-//    Private Function CreateStarterBookRecordSQL() As String
-//        Dim returnValue As String = " "
-//
-//        Dim bookManager As New BooksManager("")
-//        Dim bookGUID As String = bookManager.ConvertGUID_To_String(Guid.NewGuid)
-//        returnValue &= " " &
-//                       "CREATE TEMP TABLE IF NOT EXISTS Variables (Name TEXT PRIMARY KEY, Value TEXT); " &
-//                       "INSERT OR REPLACE INTO Variables VALUES ('@rootGUID', (SELECT guid FROM accounts WHERE accounts.name='Root Account') ); " &
-//                       "INSERT OR REPLACE INTO Variables VALUES ('@templateRootGUID', (SELECT guid FROM accounts WHERE accounts.name='Template Root') ); " &
-//                       "INSERT INTO books(" & bookManager._Fields & ") " &
-//                                "VALUES('" & bookGUID & "'," &
-//                                "(SELECT Value FROM Variables WHERE Name='@rootGUID')," &
-//                                "(SELECT Value FROM Variables WHERE Name='@templateRootGUID'));  "
-//
-//
-//        Return returnValue
-//    End Function
