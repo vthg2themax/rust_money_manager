@@ -6,10 +6,10 @@ use crate::database_helper_utility as dhu;
 
 
 #[derive(Debug)]
-pub struct Commodity {
-    pub guid: GUID, //guid is the lot's guid.
-    pub account_guid: GUID, //account_guid is the account guid for this lot.
-    pub is_closed: bool, //is_closed is whether this lot is closed.
+pub struct Lot {
+    pub guid: GUID, //guid is the lot's guid. Not NULL
+    pub account_guid: GUID, //account_guid is the account guid for this lot. Can Be Null
+    pub is_closed: bool, //is_closed is whether this lot is closed. NOT NULL
 }
 
 pub fn _fields() -> String {
@@ -19,100 +19,82 @@ pub fn _fields() -> String {
          )
 } 
 
-///retrieve_all_commodities retrieves all the commodity records.
-pub fn retrieve_all_commodities(file_path : &str) -> Result<Vec<Commodity>> {
+///retrieve_all_lots retrieves all the records.
+pub fn retrieve_all_lots(file_path : &str) -> Result<Vec<Lot>> {
     //Attempt to open the file from the given path to perform this operation
     let conn = Connection::open(file_path)?;
     //Get all the book records
     let sql : String = String::from(
-        ["SELECT ",&_fields()," FROM commodities ", 
+        ["SELECT ",&_fields()," FROM lots ", 
          ""].join(""));
     let mut stmt = conn.prepare(&sql)?;
     //Get all the commodities into a vector for returning the result
-    let mut commodities : Vec<Commodity> = Vec::new();
+    let mut lots : Vec<Lot> = Vec::new();
     let mapped_rows = stmt.query_map(NO_PARAMS, |row| 
         Ok( 
-            Commodity{
+            Lot{
                     guid: dhu::convert_string_result_to_guid(row.get(0))?,
-                    namespace: row.get(1)?,
-                    mnemonic: row.get(2)?,
-                    fullname: row.get(3)?,
-                    cusip: row.get(4)?,
-                    fraction: row.get(5)?,
-                    quote_flag: row.get(6)?,
-                    quote_source: row.get(7)?,
-                    quote_tz: row.get(8)?,
+                    account_guid: dhu::convert_string_result_to_guid(row.get(1))?,
+                    is_closed: row.get(2)?,
             }
         )
     )?;
 
     //Now we can put each of the mapped row results into the results vector
     for row in mapped_rows {
-        commodities.push(row?);
+        lots.push(row?);
     }    
 
-    Ok(commodities)
+    Ok(lots)
 }
 
-///retrieve_by_guid retrieves a commodity by it's guid.
-pub fn retrieve_by_guid(file_path : &str, incoming_guid : GUID) -> Result<Vec<Commodity>> {
+///retrieve_by_guid retrieves a lot by it's guid.
+pub fn retrieve_by_guid(file_path : &str, incoming_guid : GUID) -> Result<Vec<Lot>> {
     //Attempt to open the file from the given path to perform this operation
     let conn = Connection::open(file_path)?;
-    //Get all the commodity record fields
+    //Get all the lot record fields
     let sql : String = String::from(
-        ["SELECT ",&_fields()," FROM commodities ", 
+        ["SELECT ",&_fields()," FROM lots ", 
          "WHERE guid=@guid"].join(""));
     let mut stmt = conn.prepare(&sql)?;
     //Get all the records into a vector for returning the result
-    let mut commodities : Vec<Commodity> = Vec::new();
+    let mut lots : Vec<Lot> = Vec::new();
     let mapped_rows = stmt.query_map_named(
         named_params!{"@guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, |row| 
         Ok( 
-            Commodity{
+            Lot{
                     guid: dhu::convert_string_result_to_guid(row.get(0))?,
-                    namespace: row.get(1)?,
-                    mnemonic: row.get(2)?,
-                    fullname: row.get(3)?,
-                    cusip: row.get(4)?,
-                    fraction: row.get(5)?,
-                    quote_flag: row.get(6)?,
-                    quote_source: row.get(7)?,
-                    quote_tz: row.get(8)?,
+                    account_guid: dhu::convert_string_result_to_guid(row.get(1))?,
+                    is_closed: row.get(2)?,
             }
         )
     )?;
 
     //Now we can put each of the mapped row results into the results vector
     for row in mapped_rows {
-        commodities.push(row?);
+        lots.push(row?);
     }    
 
-    Ok(commodities)
+    Ok(lots)
 }
 
-pub fn save_new(file_path : &str, incoming_commodity : &Commodity) -> Result<bool> {
+pub fn save_new(file_path : &str, incoming_lot : &Lot) -> Result<bool> {
     //Attempt to open the file from the given path to perform this operation
     let conn = Connection::open(file_path)?;
     
     let sql = 
-        ["INSERT INTO commodities (", &_fields(),") values (",
-         "@guid,@namespace,@mnemonic,@fullname,@cusip,",
-         "@fraction,@quote_flag,@quote_source,@quote_tz",
+        ["INSERT INTO lots (", &_fields(),") values (",
+         "@guid,@account_guid,@is_closed",
          ")"
         ].join("");
 
     let result = conn.execute_named(&sql,
         named_params!{
             "@guid" : dhu::convert_guid_to_sqlite_string(
-                                                incoming_commodity.guid)?,
-            "@namespace" : incoming_commodity.namespace,
-            "@mnemonic" : incoming_commodity.mnemonic,
-            "@fullname": incoming_commodity.fullname,
-            "@cusip" : incoming_commodity.cusip,
-            "@fraction" : incoming_commodity.fraction,
-            "@quote_flag" : incoming_commodity.quote_flag,
-            "@quote_source" : incoming_commodity.quote_source,
-            "@quote_tz" : incoming_commodity.quote_tz,
+                                                incoming_lot.guid)?,
+            "@account_guid" : dhu::convert_guid_to_sqlite_string(
+                                                incoming_lot.account_guid)?,
+            "@is_closed" : incoming_lot.is_closed,
         }
         ).unwrap();    
 
@@ -127,31 +109,22 @@ pub fn save_new(file_path : &str, incoming_commodity : &Commodity) -> Result<boo
     
 }
 
-pub fn update_existing(file_path : &str, incoming_commodity : &Commodity) -> Result<bool> {
+pub fn update_existing(file_path : &str, incoming_lot : &Lot) -> Result<bool> {
     //Attempt to open the file from the given path to perform this operation
     let conn = Connection::open(file_path)?;
     
     let sql = 
-        ["UPDATE commodities SET ",
-                                "namespace=@namespace,mnemonic=@mnemonic,",
-                                "fullname=@fullname,cusip=@cusip,",
-                                "fraction=@fraction,quote_flag=@quote_flag,",
-                                "quote_source=@quote_source,quote_tz=@quote_tz",
+        ["UPDATE lots SET ",
+                                "account_guid=@account_guid,",
+                                "is_closed=@is_closed ",
         " WHERE guid=@guid"
         ].join("");
 
     let result = conn.execute_named(&sql,
         named_params!{
-            "@guid" : dhu::convert_guid_to_sqlite_string(
-                                                incoming_commodity.guid)?,
-            "@namespace" : incoming_commodity.namespace,
-            "@mnemonic" : incoming_commodity.mnemonic,
-            "@fullname": incoming_commodity.fullname,
-            "@cusip" : incoming_commodity.cusip,
-            "@fraction" : incoming_commodity.fraction,
-            "@quote_flag" : incoming_commodity.quote_flag,
-            "@quote_source" : incoming_commodity.quote_source,
-            "@quote_tz" : incoming_commodity.quote_tz,
+            "@guid" : dhu::convert_guid_to_sqlite_string(incoming_lot.guid)?,
+            "@account_guid" : dhu::convert_guid_to_sqlite_string(incoming_lot.account_guid)?,
+            "@@is_closed" : if incoming_lot.is_closed {1} else {0},
         }
         ).unwrap();    
 
@@ -171,7 +144,7 @@ pub fn delete_existing(file_path : &str, incoming_guid : GUID) -> Result<bool> {
     let conn = Connection::open(file_path)?;
     
     let sql = 
-        ["DELETE FROM commodities ",
+        ["DELETE FROM lots ",
         " WHERE guid=@guid"
         ].join("");
 

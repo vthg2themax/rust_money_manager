@@ -14,6 +14,8 @@ mod commodities_manager;
 mod database_helper_utility;
 mod sciter_helper_utility;
 mod versions_manager;
+mod lots_manager;
+mod slots_manager;
 
 use rusqlite::{Connection, Result};
 use rusqlite::NO_PARAMS;
