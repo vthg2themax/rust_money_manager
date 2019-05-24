@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use rusqlite::*;
 use guid_create::GUID;
 use crate::database_helper_utility as dhu;
@@ -62,7 +63,8 @@ pub struct Account {
     pub code: String, //Code is the code for this account. Blank by default
     pub description: String, //Description is the description for this account. Blank by default.
     pub hidden: bool, //Hidden is a bit field whether this account is hidden or not.
-    pub placeholder: bool,//Placeholder is whether this account is a placeholder account. (1 for yes, 0 for no)
+    pub placeholder: bool, //Placeholder is whether this account is a placeholder account. (1 for yes, 0 for no)
+    pub tags: HashMap<String, String>, //tags is a hash map of data for this record, such as balance amount
 }
 
 //_Fields: guid,name,account_type,commodity_guid,commodity_scu,non_std_scu,
@@ -101,6 +103,65 @@ pub fn retrieve_active_accounts(file_path : &str) -> Result<Vec<Account>> {
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
+            }
+        )
+    )?;
+
+    //Now we can put each of the mapped row results into the accounts vector
+    //std::result::Result<accounts_manager::Account, rusqlite::Error>    
+    for row in mapped_rows {
+        accounts.push(row?);
+    }    
+
+    Ok(accounts)
+}
+
+/// retrieve_active_accounts_with_balances retrieves a list of active accounts
+/// with the tags value containing the current balance of the account.
+pub fn retrieve_active_accounts_with_balances(file_path : &str) -> Result<Vec<Account>> {
+    //Attempt to open the file from the given path to perform this operation
+    let conn = Connection::open(file_path)?;
+    //Get all the account fields for active account
+    let sql : String = String::from(
+        ["SELECT ",&_fields(),", ",
+         "(SELECT CASE (SELECT COUNT(DISTINCT(splits.value_denom)) ",
+                       "FROM splits ",
+                       "WHERE splits.account_guid=accounts.guid)",
+         "   WHEN 1 THEN (",
+         "       (SELECT SUM(splits.value_num *1.0) FROM splits WHERE splits.account_guid=accounts.guid) /",
+         "       (SELECT splits.value_denom FROM splits WHERE splits.account_guid=accounts.guid)",
+         "   )",
+         "   ELSE \"More Than A Single Denominator, Please Contact Support!\"",
+         "END",
+         ") as balance ",
+         "FROM accounts WHERE (hidden=0) AND (placeholder=0) AND ",
+         "(NOT(account_type='ROOT')) AND (NOT(account_type='EXPENSE')) AND ",
+         "(NOT(account_type='EQUITY'))",
+         "AND (NOT(account_type='INCOME')) AND (NOT(name='Expenses'))"].join(""));
+    let mut stmt = conn.prepare(&sql)?;
+    //Get all the accounts into a vector for returning the result
+    let mut accounts : Vec<Account> = Vec::new();
+    let mapped_rows = stmt.query_map(NO_PARAMS, |row| 
+        Ok( 
+            Account{
+                    guid: dhu::convert_string_result_to_guid(row.get(0))?,
+                    name: row.get(1)?,
+                    account_type: convert_to_account_type(row.get(2))?,
+                    commodity_guid: dhu::convert_string_result_to_guid(row.get(3))?,
+                    commodity_scu: row.get(4)?,
+                    non_std_scu: row.get(5)?,
+                    parent_guid: dhu::convert_string_result_to_guid(row.get(6))?,
+                    code: row.get(7)?,
+                    description: row.get(8)?,
+                    hidden: row.get(9)?,
+                    placeholder: row.get(10)?,
+                    tags: {
+                        let mut tags = HashMap::new();
+                        let balance : f64 = row.get(11)?;
+                        tags.insert(String::from("balance"), format!("${:.2}",balance));
+                        tags
+                    },
             }
         )
     )?;
@@ -139,6 +200,7 @@ pub fn retrieve_all_nonhidden_accounts(file_path : &str) -> Result<Vec<Account>>
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
             }
         )
     )?;
@@ -177,6 +239,7 @@ pub fn retrieve_all_accounts(file_path : &str) -> Result<Vec<Account>> {
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
             }
         )
     )?;
@@ -236,6 +299,7 @@ pub fn retrieve_accounts_with_transactions_in_last_days(file_path : &str, given_
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
             }
         )
     )?;
@@ -275,6 +339,7 @@ pub fn retrieve_by_guid(file_path : &str, incoming_account_guid : GUID) -> Resul
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
             }
         )
     )?;
@@ -319,6 +384,7 @@ pub fn retrieve_account_for_account_type(file_path : &str, incoming_account_type
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
             }
         )
     )?;
@@ -359,6 +425,7 @@ pub fn retrieve_top_account_by_name(file_path : &str, incoming_account_name : St
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
             }
         )
     )?;
@@ -410,6 +477,7 @@ pub fn retrieve_top_account_by_name_starting_with(file_path : &str, incoming_acc
                     description: row.get(8)?,
                     hidden: row.get(9)?,
                     placeholder: row.get(10)?,
+                    tags: HashMap::new(),
             }
         )
     )?;
