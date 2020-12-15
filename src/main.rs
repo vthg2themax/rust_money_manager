@@ -1,8 +1,5 @@
-// Specify the Windows subsystem to eliminate console window.
-// Requires Rust 1.18.
-#![windows_subsystem="windows"]
 
-extern crate sciter;
+extern crate web_view;
 extern crate rusqlite;
 extern crate chrono;
 extern crate meval;
@@ -11,7 +8,7 @@ mod accounts_manager;
 mod books_manager;
 mod commodities_manager;
 mod database_helper_utility;
-mod sciter_helper_utility;
+mod html_helper_utility;
 mod versions_manager;
 mod lots_manager;
 mod slots_manager;
@@ -23,66 +20,144 @@ use chrono::prelude::*;
 use guid_create::GUID;
 use crate::database_helper_utility as dhu;
 
-fn main() -> Result<()> {
-    let file_path = "/home/vince/Documents/Vinces_Money.gnucash.bak";
-    //let file_path = "Y:/Vinces_Money.gnucash.bak";
-    let mut html_string : String = String::from("<html>Vince Rules!</html>");
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+use web_view::*;
 
-    if std::fs::metadata(file_path).is_ok() {
-        html_string = String::from("<html>");
-                
-        html_string = [html_string,
-                       sciter_helper_utility::get_active_accounts_with_balances(file_path).expect("Files")
-        ].join("");
+fn main() {
+    let counter = Arc::new(Mutex::new(0));
 
-        html_string = [html_string,
-                      String::from("</html>")].join("");
-    }
-    
-    
-    println!("Here's a null guid '{0}'", dhu::_null_guid());
+    let counter_inner = counter.clone();
+    let webview = web_view::builder()
+        .title("Timer example")
+        .content(Content::Html(HTML))
+        .size(800, 600)
+        .resizable(true)
+        .debug(true)
+        .user_data(0)
+        .invoke_handler(|webview, arg| {
+            match arg {
+                "reset" => {
+                    *webview.user_data_mut() += 10;
+                    let mut counter = counter.lock().unwrap();
+                    *counter = 0;
+                    render(webview, *counter)?;
+                }
+                "exit" => {
+                    webview.exit();
+                }
+                _ => unimplemented!(),
+            };
+            Ok(())
+        })
+        .build()
+        .unwrap();
 
-    let dt : NaiveDateTime = Local::now().naive_local();
-    println!("Here's a string date val: '{0}'",
-              dhu::convert_date_to_string_format(dt));
+    let handle = webview.handle();
+    thread::spawn(move || loop {
+        {
+            let mut counter = counter_inner.lock().unwrap();
+            *counter += 1;
+            let count = *counter;
+            handle
+                .dispatch(move |webview| {
+                    *webview.user_data_mut() -= 1;
+                    render(webview, count)
+                })
+                .unwrap();
+        }
+        thread::sleep(Duration::from_secs(1));
+    });
 
-    let mut nt : NaiveDateTime = Local::now().naive_local();
-    println!("Current nt value is: {0}", nt);
-    let new_string_val : String = String::from("20190415165254");
-    let is_valid_date : bool = dhu::convert_string_to_date_format(&mut nt, &new_string_val);
-    
-println!("The value '{0}' is {1}-ly a valid date. Returned Date is: '{2}",
-new_string_val, is_valid_date, nt);
-
-	// Step 1: Include the 'minimal.html' file as a byte array.
-	// Hint: Take a look into 'minimal.html' which contains some tiscript code.
-	//let html = include_bytes!("minimal.htm");
-    let html = html_string.as_bytes();
-    
-	// Step 2: Enable the features we need in our tiscript code.
-	sciter::set_options(sciter::RuntimeOptions::ScriptFeatures(
-		sciter::SCRIPT_RUNTIME_FEATURES::ALLOW_SYSINFO as u8 | // Enables Sciter.machineName()
-			sciter::SCRIPT_RUNTIME_FEATURES::ALLOW_FILE_IO as u8 | // Enables opening file dialog (view.selectFile())
-			sciter::SCRIPT_RUNTIME_FEATURES::ALLOW_SOCKET_IO as u8)).unwrap(); // Enables connecting to the inspector via Ctrl+Shift+I
-
-	// Step 3: Create a new main sciter window of type `sciter::Window`.
-	// Hint: The sciter Window wrapper (src/window.rs) contains more
-	// interesting functions to open or attach to another existing window.
-	let mut frame = sciter::Window::new();
-    
-
-	// Step 4: Load HTML byte array from memory to `sciter::Window`.
-	// Hint: second parameter is an optional uri, it can be `None` in simple cases,
-	// but it is useful for debugging purposes (check the Inspector tool from the Sciter SDK).
-	// Also you can use a `load_file` method, but it requires an absolute path
-	// of the main document to resolve HTML resources properly.
-	frame.load_html(html, Some("example://minimal.htm"));
-
-	// Step 5: Show window and run the main app message loop until window been closed.
-	frame.run_app();
-
-    Ok(())
+    webview.run().unwrap();
 }
+
+fn render(webview: &mut WebView<i32>, counter: u32) -> WVResult {
+    let user_data = *webview.user_data();
+    println!("counter: {}, userdata: {}", counter, user_data);
+    webview.eval(&format!("updateTicks({}, {})", counter, user_data))
+}
+
+const HTML: &str = r#"
+<!doctype html>
+<html>
+	<body>
+		<p id="ticks"></p>
+		<button onclick="external.invoke('reset')">reset</button>
+		<button onclick="external.invoke('exit')">exit</button>
+		<script type="text/javascript">
+			function updateTicks(n, u) {
+				document.getElementById('ticks').innerHTML = 'ticks ' + n + '<br>' + 'userdata ' + u;
+			}
+		</script>
+	</body>
+</html>
+"#;
+
+// fn main() -> Result<()> {
+//     let file_path = "/home/vince/Documents/Vinces_Money.gnucash.bak";
+//     //let file_path = "Y:/Vinces_Money.gnucash.bak";
+//     let mut html_string : String = String::from("<html>");
+//     html_string = [html_string, sciter_helper_utility::get_default_script()].join("");
+
+//     if std::fs::metadata(file_path).is_ok() {
+//         let account_table = sciter_helper_utility::get_active_accounts_with_balances(file_path).expect("Files");
+        
+//         html_string = html_string.replace("<body></body>", 
+//                                          &["<body>", account_table.as_str(), "<body>"].join("")
+//                                          );
+
+        
+//     }
+    
+//     html_string = [html_string,  String::from("</html>")].join("");
+    
+//     println!("Here's a null guid '{0}'", dhu::_null_guid());
+
+//     let dt : NaiveDateTime = Local::now().naive_local();
+//     println!("Here's a string date val: '{0}'",
+//               dhu::convert_date_to_string_format(dt));
+
+//     let mut nt : NaiveDateTime = Local::now().naive_local();
+//     println!("Current nt value is: {0}", nt);
+//     let new_string_val : String = String::from("20190415165254");
+//     let is_valid_date : bool = dhu::convert_string_to_date_format(&mut nt, &new_string_val);
+    
+// println!("The value '{0}' is {1}-ly a valid date. Returned Date is: '{2}",
+// new_string_val, is_valid_date, nt);
+
+// 	// Step 1: Include the 'minimal.html' file as a byte array.
+// 	// Hint: Take a look into 'minimal.html' which contains some tiscript code.
+// 	//let html = include_bytes!("minimal.htm");
+//     let html = html_string.as_bytes();
+    
+// 	// Step 2: Enable the features we need in our tiscript code.
+// 	sciter::set_options(sciter::RuntimeOptions::ScriptFeatures(
+// 		sciter::SCRIPT_RUNTIME_FEATURES::ALLOW_SYSINFO as u8 | // Enables Sciter.machineName()
+// 			sciter::SCRIPT_RUNTIME_FEATURES::ALLOW_FILE_IO as u8 | // Enables opening file dialog (view.selectFile())
+// 			sciter::SCRIPT_RUNTIME_FEATURES::ALLOW_SOCKET_IO as u8)).unwrap(); // Enables connecting to the inspector via Ctrl+Shift+I
+
+// 	// Step 3: Create a new main sciter window of type `sciter::Window`.
+// 	// Hint: The sciter Window wrapper (src/window.rs) contains more
+// 	// interesting functions to open or attach to another existing window.
+// 	let mut frame = sciter::Window::new();
+    
+
+// 	// Step 4: Load HTML byte array from memory to `sciter::Window`.
+// 	// Hint: second parameter is an optional uri, it can be `None` in simple cases,
+// 	// but it is useful for debugging purposes (check the Inspector tool from the Sciter SDK).
+// 	// Also you can use a `load_file` method, but it requires an absolute path
+// 	// of the main document to resolve HTML resources properly.
+// 	frame.load_html(html, Some("example://minimal.htm"));
+//     frame.event_handler(EventHandler);
+// 	// Step 5: Show window and run the main app message loop until window been closed.
+// 	frame.run_app();
+
+//     Ok(())
+// }
 
 
 #[derive(Debug)]

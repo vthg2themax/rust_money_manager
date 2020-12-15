@@ -254,64 +254,64 @@ pub fn retrieve_all_accounts(file_path : &str) -> Result<Vec<Account>> {
 }
 
 //RetrieveAllAccountsWithTransactionsInTheLastGivenDays
-pub fn retrieve_accounts_with_transactions_in_last_days(file_path : &str, given_days : i64) -> Result<Vec<Account>> {
-    //Attempt to open the file from the given path to perform this operation
-    let conn = Connection::open(file_path)?;
-    let start_date = Utc.datetime_from_str(
-                        &(Utc::now() + Duration::days(-1 * given_days)).format("%Y-%m-%d 00:00:00").to_string(), 
-                        "%Y-%m-%d %H:%M:%S").expect("Failed to create a start date for comparison!");
-    let end_date = Utc.datetime_from_str(
-                        &(Utc::now()).format("%Y-%m-%d 23:59:59").to_string(),
-                        "%Y-%m-%d %H:%M:%S").expect("Failed to create an end date for comparison!");
+// pub fn retrieve_accounts_with_transactions_in_last_days(file_path : &str, given_days : i64) -> Result<Vec<Account>> {
+//     //Attempt to open the file from the given path to perform this operation
+//     let conn = Connection::open(file_path)?;
+//     let start_date = Utc.datetime_from_str(
+//                         &(Utc::now() + Duration::days(-1 * given_days)).format("%Y-%m-%d 00:00:00").to_string(), 
+//                         "%Y-%m-%d %H:%M:%S").expect("Failed to create a start date for comparison!");
+//     let end_date = Utc.datetime_from_str(
+//                         &(Utc::now()).format("%Y-%m-%d 23:59:59").to_string(),
+//                         "%Y-%m-%d %H:%M:%S").expect("Failed to create an end date for comparison!");
     
-    let sql : String = String::from(
-        ["SELECT ",&_fields()," FROM  ", 
-         "WHERE accounts.guid IN (",
-         "    SELECT splits.account_guid FROM splits WHERE splits.tx_guid IN (",
-         "        SELECT t.guid ",
-         "        FROM transactions as t",
-         "        WHERE datetime(substr(t.post_date,1,4)||'-'||substr(t.post_date,5,2)||'-'||",
-         "                       substr(t.post_date,7,2)||' '||substr(t.post_date,9,2)||':'||",
-         "                       substr(t.post_date,11,2)||':'||substr(t.post_date,13,2)) >= ",
-         "              datetime('", &start_date.format("%Y-%m-%d %H:%M:%S").to_string(), "')",
-         "        AND ",
-         "              datetime(substr(t.post_date,1,4)||'-'||substr(t.post_date,5,2)||'-'||",
-         "                       substr(t.post_date,7,2)||' '||substr(t.post_date,9,2)||':'||",
-         "                       substr(t.post_date,11,2)||':'||substr(t.post_date,13,2)) <= ",
-         "              datetime('", &end_date.format("%Y-%m-%d %H:%M:%S").to_string(), "')",
-         "        ) AND (NOT(accounts.name='Root Account')) AND (NOT(accounts.name='Template Root'))",
-         ""].join(""));
+//     let sql : String = String::from(
+//         ["SELECT ",&_fields()," FROM  ", 
+//          "WHERE accounts.guid IN (",
+//          "    SELECT splits.account_guid FROM splits WHERE splits.tx_guid IN (",
+//          "        SELECT t.guid ",
+//          "        FROM transactions as t",
+//          "        WHERE datetime(substr(t.post_date,1,4)||'-'||substr(t.post_date,5,2)||'-'||",
+//          "                       substr(t.post_date,7,2)||' '||substr(t.post_date,9,2)||':'||",
+//          "                       substr(t.post_date,11,2)||':'||substr(t.post_date,13,2)) >= ",
+//          "              datetime('", &start_date.format("%Y-%m-%d %H:%M:%S").to_string(), "')",
+//          "        AND ",
+//          "              datetime(substr(t.post_date,1,4)||'-'||substr(t.post_date,5,2)||'-'||",
+//          "                       substr(t.post_date,7,2)||' '||substr(t.post_date,9,2)||':'||",
+//          "                       substr(t.post_date,11,2)||':'||substr(t.post_date,13,2)) <= ",
+//          "              datetime('", &end_date.format("%Y-%m-%d %H:%M:%S").to_string(), "')",
+//          "        ) AND (NOT(accounts.name='Root Account')) AND (NOT(accounts.name='Template Root'))",
+//          ""].join(""));
     
-    let mut stmt = conn.prepare(&sql)?;
-    //Get all the accounts into a vector for returning the result
-    let mut accounts : Vec<Account> = Vec::new();
-    let mapped_rows = stmt.query_map(NO_PARAMS, |row| 
-        Ok( 
-            Account{
-                    guid: dhu::convert_string_result_to_guid(row.get(0))?,
-                    name: row.get(1)?,
-                    account_type: convert_to_account_type(row.get(2))?,
-                    commodity_guid: dhu::convert_string_result_to_guid(row.get(3))?,
-                    commodity_scu: row.get(4)?,
-                    non_std_scu: row.get(5)?,
-                    parent_guid: dhu::convert_string_result_to_guid(row.get(6))?,
-                    code: row.get(7)?,
-                    description: row.get(8)?,
-                    hidden: row.get(9)?,
-                    placeholder: row.get(10)?,
-                    tags: HashMap::new(),
-            }
-        )
-    )?;
+//     let mut stmt = conn.prepare(&sql)?;
+//     //Get all the accounts into a vector for returning the result
+//     let mut accounts : Vec<Account> = Vec::new();
+//     let mapped_rows = stmt.query_map(NO_PARAMS, |row| 
+//         Ok( 
+//             Account{
+//                     guid: dhu::convert_string_result_to_guid(row.get(0))?,
+//                     name: row.get(1)?,
+//                     account_type: convert_to_account_type(row.get(2))?,
+//                     commodity_guid: dhu::convert_string_result_to_guid(row.get(3))?,
+//                     commodity_scu: row.get(4)?,
+//                     non_std_scu: row.get(5)?,
+//                     parent_guid: dhu::convert_string_result_to_guid(row.get(6))?,
+//                     code: row.get(7)?,
+//                     description: row.get(8)?,
+//                     hidden: row.get(9)?,
+//                     placeholder: row.get(10)?,
+//                     tags: HashMap::new(),
+//             }
+//         )
+//     )?;
 
-    //Now we can put each of the mapped row results into the accounts vector
-    //std::result::Result<accounts_manager::Account, rusqlite::Error>    
-    for row in mapped_rows {
-        accounts.push(row?);
-    }    
+//     //Now we can put each of the mapped row results into the accounts vector
+//     //std::result::Result<accounts_manager::Account, rusqlite::Error>    
+//     for row in mapped_rows {
+//         accounts.push(row?);
+//     }    
 
-    Ok(accounts)
-}
+//     Ok(accounts)
+// }
 
 ///retrieve_by_guid retrieves an account by it's guid.
 pub fn retrieve_by_guid(file_path : &str, incoming_account_guid : GUID) -> Result<Vec<Account>> {

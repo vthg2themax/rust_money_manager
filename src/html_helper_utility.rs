@@ -1,6 +1,6 @@
 use crate::{
     accounts_manager, books_manager, commodities_manager, database_helper_utility, 
-    sciter_helper_utility, versions_manager, lots_manager, slots_manager
+    html_helper_utility, versions_manager, lots_manager, slots_manager
     };
 
 use rusqlite::{Connection, Result};
@@ -10,13 +10,9 @@ use chrono::prelude::*;
 use guid_create::GUID;
 use crate::database_helper_utility as dhu;
 
-pub fn get_active_accounts_with_balances(file_path : &str) -> Result<String> {    
-    let mut return_value = String::from("");
-    let accounts = accounts_manager::retrieve_active_accounts_with_balances(file_path)
-                        .expect(&"Error Finding Accounts!");
-
-    return_value = r#"<script type='text/tiscript'>
-      view.caption = "I like cheese!";
+pub fn get_default_script() -> String {
+  r#"<script type='text/tiscript'>
+      view.caption = "Rusty Money Manager";
       var (x, y, width, height) = view.screenBox(view.screen, #workarea);
       var new_width = (0.8 * width).toInteger();
       var new_height = (0.5 * height).toInteger();
@@ -26,22 +22,32 @@ pub fn get_active_accounts_with_balances(file_path : &str) -> Result<String> {
       //$(#machine).text = String.printf("%s ", view.screenBox(view.screen, #workarea));
 
       $(#post).on("click", : {
-        $(#message).postEvent(Event.CHANGE, 0, this, view.screenBox(view.screen, #workarea) );
-        view.move(250,250,600,700, true); 
+        //$(#message).postEvent(Event.CHANGE, 0, this, view.screenBox(view.screen, #workarea) );
+        //view.move(250,250,600,700, true); 
+      });
+
+      $(#OpenFileButton).on("click", function(){
+
+        var fn = view.selectFile(#OpenFileButton,
+          "All Files (*.*)|*.*" , "html" );
+          //"HTML Files (*.htm,*.html)|*.HTM;*.HTML|All Files (*.*)|*.*" , "html" );
+
+
+        stdout.println("selected file: " + fn);
+        //{fn}
       });
 
       $(#message).on("change", function(e) {
-         this.text = String.printf("Event from `%s`: %v\n", e.source.id, e.data);
+         //this.text = String.printf("Event from `%s`: %v\n", e.source.id, e.data);
       });
 
     </script>
-    <body>
-    <h1>Fire event</h1>
-  <p>Running on <em #machine/> machine</p>
-
-  <button id="post">Post event</button>
-  <button id="send">Send event</button>
-  <button id="fire">Fire event</button>
+    <p>
+      <button id="OpenFileButton">Open File</button>
+      <button id="AccountsButton">Accounts</button>
+      <button id="post">Post</button>
+      <button id="fire">Fire event</button>
+    </p>
 
   <div id="message"></div>
   <style>
@@ -49,7 +55,15 @@ pub fn get_active_accounts_with_balances(file_path : &str) -> Result<String> {
       behavior:htmlarea; // selection
     }
   </style>
-    "#.to_string();
+  <body></body>
+    "#.to_string()
+
+}
+
+pub fn get_active_accounts_with_balances(file_path : &str) -> Result<String> {    
+    let mut return_value = String::from("");
+    let accounts = accounts_manager::retrieve_active_accounts_with_balances(file_path)
+                        .expect(&"Error Finding Accounts!");
 
     return_value = [return_value,
         "<table>".to_string(),
@@ -58,9 +72,11 @@ pub fn get_active_accounts_with_balances(file_path : &str) -> Result<String> {
     for account in accounts {
         return_value = [return_value,
                         String::from("<tr>"),
-                        String::from("<td>"),
+                        String::from("<td><a href='#' data-guid='"),
+                        dhu::convert_guid_to_sqlite_string(account.guid).expect("Invalid GUID"),
+                        String::from("'>"),
                         account.name,
-                        String::from("</td>"),
+                        String::from("</a></td>"),
                         String::from("<td>"),
                         account.account_type.to_string(),
                         String::from("</td>"),
@@ -77,7 +93,7 @@ pub fn get_active_accounts_with_balances(file_path : &str) -> Result<String> {
     }
 
     return_value = [return_value,
-        "</table></body>".to_string(),
+        "</table>".to_string(),
     ].join("");
 
     Ok(return_value)

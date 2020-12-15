@@ -5,10 +5,10 @@ authors = ["vince"]
 edition = "2018"
 
 [dependencies]
-sciter-rs = "0.5.45"
-rusqlite = {version="0.17", features=["bundled"]}
-time = "0.1.42"
+rusqlite = {version="0.23.1", features=["bundled"]}
+time = "0.2.12"
 chrono = "0.4.6"
 guid-create = "0.1.1"
 meval = "0.2"
-regex = "1.1.6"
+regex = "1.4.2"
+web-view = "0.7.2"
