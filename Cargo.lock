@@ -442,6 +442,7 @@ dependencies = [
  "regex",
  "rusqlite",
  "time 0.2.23",
+ "tinyfiledialogs",
  "web-view",
 ]
 

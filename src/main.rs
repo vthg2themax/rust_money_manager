@@ -1,3 +1,4 @@
+extern crate tinyfiledialogs as tfd;
 
 extern crate web_view;
 extern crate rusqlite;
@@ -19,6 +20,7 @@ use std::collections::HashMap;
 use chrono::prelude::*;
 use guid_create::GUID;
 use crate::database_helper_utility as dhu;
+use tfd::MessageBoxIcon;
 
 use std::{
     sync::{Arc, Mutex},
@@ -28,18 +30,51 @@ use std::{
 use web_view::*;
 
 fn main() {
+    
+    let file_path = "/home/vince/Documents/Vinces_Money.gnucash.bak";
+    //let file_path = "Y:/Vinces_Money.gnucash.bak";
+    let mut html_string : String = String::from("<html>");
+    html_string = [html_string, html_helper_utility::get_default_script()].join("");
+
+    if std::fs::metadata(file_path).is_ok() {
+        let account_table = html_helper_utility::get_active_accounts_with_balances(file_path).expect("Files");
+        
+        html_string = html_string.replace("<body></body>", 
+                                         &["<body>", account_table.as_str(), "<body>"].join("")
+                                         );
+    }
+    println!("{}",html_string);
+    //html_string = [html_string, String::from("</html>")].join("");
+    html_string += "<html>";
+    println!("{}",html_string);
+
     let counter = Arc::new(Mutex::new(0));
 
     let counter_inner = counter.clone();
     let webview = web_view::builder()
         .title("Timer example")
-        .content(Content::Html(HTML))
+        .content(Content::Html(html_string))
         .size(800, 600)
         .resizable(true)
         .debug(true)
         .user_data(0)
         .invoke_handler(|webview, arg| {
             match arg {
+                "open" => match tfd::open_file_dialog("Please choose a file...", "", None) {
+                    Some(path) => {
+                        let mut temp_html = ["<html>",&html_helper_utility::get_default_script()].join("");
+                        let account_table = html_helper_utility::get_active_accounts_with_balances(&path).expect("Files");
+                        temp_html = temp_html.replace("<body></body>", 
+                                                     &["<body>", account_table.as_str(), "<body>"].join("")
+                                                     );
+                        webview.set_html(&temp_html);
+                    },
+                    None => tfd::message_box_ok(
+                        "Warning",
+                        "You didn't choose a file.",
+                        MessageBoxIcon::Warning,
+                    ),
+                },
                 "reset" => {
                     *webview.user_data_mut() += 10;
                     let mut counter = counter.lock().unwrap();
@@ -85,7 +120,15 @@ const HTML: &str = r#"
 <!doctype html>
 <html>
 	<body>
-		<p id="ticks"></p>
+        <p id="ticks"></p>
+        <label>Choose a file:
+            <button onclick="external.invoke('open')">Open</button>
+        </label>
+        <br>
+        <label>Choose a deprecatedfile:
+            <button onclick="external.invoke('open_deprecated')">Open</button>
+        </label>
+        <br>
 		<button onclick="external.invoke('reset')">reset</button>
 		<button onclick="external.invoke('exit')">exit</button>
 		<script type="text/javascript">
@@ -98,20 +141,7 @@ const HTML: &str = r#"
 "#;
 
 // fn main() -> Result<()> {
-//     let file_path = "/home/vince/Documents/Vinces_Money.gnucash.bak";
-//     //let file_path = "Y:/Vinces_Money.gnucash.bak";
-//     let mut html_string : String = String::from("<html>");
-//     html_string = [html_string, sciter_helper_utility::get_default_script()].join("");
 
-//     if std::fs::metadata(file_path).is_ok() {
-//         let account_table = sciter_helper_utility::get_active_accounts_with_balances(file_path).expect("Files");
-        
-//         html_string = html_string.replace("<body></body>", 
-//                                          &["<body>", account_table.as_str(), "<body>"].join("")
-//                                          );
-
-        
-//     }
     
 //     html_string = [html_string,  String::from("</html>")].join("");
     

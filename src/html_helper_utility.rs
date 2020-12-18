@@ -43,6 +43,9 @@ pub fn get_default_script() -> String {
 
     </script>
     <p>
+      <label>Choose a file:
+        <button onclick="external.invoke('open')">Open</button>
+      </label>
       <button id="OpenFileButton">Open File</button>
       <button id="AccountsButton">Accounts</button>
       <button id="post">Post</button>
