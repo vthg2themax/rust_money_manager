@@ -1,5 +1,5 @@
 extern crate tinyfiledialogs as tfd;
-
+extern crate unicode_segmentation;
 extern crate web_view;
 extern crate rusqlite;
 extern crate chrono;
@@ -14,6 +14,7 @@ mod versions_manager;
 mod lots_manager;
 mod slots_manager;
 
+use unicode_segmentation::UnicodeSegmentation;
 use rusqlite::{Connection, Result};
 use rusqlite::NO_PARAMS;
 use std::collections::HashMap;
@@ -21,6 +22,7 @@ use chrono::prelude::*;
 use guid_create::GUID;
 use crate::database_helper_utility as dhu;
 use tfd::MessageBoxIcon;
+use regex::Regex;
 
 use std::{
     sync::{Arc, Mutex},
@@ -28,87 +30,120 @@ use std::{
     time::Duration,
 };
 use web_view::*;
+use std::process::Command;
+use std::io::{self, Write};
 
 fn main() {
     
-    let file_path = "/home/vince/Documents/Vinces_Money.gnucash.bak";
+    let file_path = "/home/vince/Documents/Vinces_Money.gnucash";
     //let file_path = "Y:/Vinces_Money.gnucash.bak";
-    let mut html_string : String = String::from("<html>");
-    html_string = [html_string, html_helper_utility::get_default_script()].join("");
+    let mut html_string : String = html_helper_utility::get_default_page_html();
 
     if std::fs::metadata(file_path).is_ok() {
         let account_table = html_helper_utility::get_active_accounts_with_balances(file_path).expect("Files");
         
-        html_string = html_string.replace("<body></body>", 
-                                         &["<body>", account_table.as_str(), "<body>"].join("")
+        html_string = html_string.replace("<div id='body'></div>", 
+                                         &["<div id='body'>", account_table.as_str(), "</div>"].join("")
                                          );
-    }
-    println!("{}",html_string);
-    //html_string = [html_string, String::from("</html>")].join("");
-    html_string += "<html>";
-    println!("{}",html_string);
+    }    
+    
+    let mut width : Mutex<i32> = Mutex::new(0);
 
-    let counter = Arc::new(Mutex::new(0));
-
-    let counter_inner = counter.clone();
-    let webview = web_view::builder()
+    let mut argument = "";
+    {
+    let mut tempwebview = web_view::builder()
         .title("Timer example")
-        .content(Content::Html(html_string))
+        .content(Content::Html("Test"))        
         .size(800, 600)
         .resizable(true)
         .debug(true)
         .user_data(0)
-        .invoke_handler(|webview, arg| {
-            match arg {
-                "open" => match tfd::open_file_dialog("Please choose a file...", "", None) {
-                    Some(path) => {
-                        let mut temp_html = ["<html>",&html_helper_utility::get_default_script()].join("");
-                        let account_table = html_helper_utility::get_active_accounts_with_balances(&path).expect("Files");
-                        temp_html = temp_html.replace("<body></body>", 
-                                                     &["<body>", account_table.as_str(), "<body>"].join("")
-                                                     );
-                        webview.set_html(&temp_html);
-                    },
-                    None => tfd::message_box_ok(
-                        "Warning",
-                        "You didn't choose a file.",
-                        MessageBoxIcon::Warning,
-                    ),
-                },
-                "reset" => {
-                    *webview.user_data_mut() += 10;
-                    let mut counter = counter.lock().unwrap();
-                    *counter = 0;
-                    render(webview, *counter)?;
-                }
-                "exit" => {
-                    webview.exit();
-                }
-                _ => unimplemented!(),
-            };
+        .invoke_handler(|tempwebview, arg| {
+            let width_regex = Regex::new(r"^width:.*$").unwrap();
+            if width_regex.is_match(arg){
+                println!("'{:?}'",arg);
+                //argument = arg.clone();
+                //width = arg;
+                tempwebview.set_title(arg);
+                let argString = String::from(arg.graphemes(true).skip("width:".len()).collect::<String>());
+                
+                width = Mutex::new(argString.parse::<i32>().unwrap());
+            }
             Ok(())
         })
         .build()
         .unwrap();
 
+    tempwebview.eval("external.invoke('width:'+ parseInt((screenX*2) +800).toString());");
+    tempwebview.exit();
+    //tempwebview.run().unwrap();
+    }   
+    
+    let webview = web_view::builder()
+        .title("Timer example")
+        .content(Content::Html(html_string))        
+        .size(*width.lock().unwrap(), 600)
+        .resizable(true)
+        .debug(true)
+        .user_data(0)
+        .invoke_handler(main_menu_handlers)
+        .build()
+        .unwrap();
+
     let handle = webview.handle();
-    thread::spawn(move || loop {
-        {
-            let mut counter = counter_inner.lock().unwrap();
-            *counter += 1;
-            let count = *counter;
-            handle
-                .dispatch(move |webview| {
-                    *webview.user_data_mut() -= 1;
-                    render(webview, count)
-                })
-                .unwrap();
-        }
-        thread::sleep(Duration::from_secs(1));
-    });
+    // thread::spawn(move || loop {
+    //     {
+    //         let mut counter = counter_inner.lock().unwrap();
+    //         *counter += 1;
+    //         let count = *counter;
+    //         handle
+    //             .dispatch(move |webview| {
+    //                 *webview.user_data_mut() -= 1;
+    //                 render(webview, count)
+    //             })
+    //             .unwrap();
+    //     }
+    //     thread::sleep(Duration::from_secs(1));
+    // });
 
     webview.run().unwrap();
 }
+
+fn main_menu_handlers(webview: &mut WebView<i32>, arg: &str) -> WVResult {
+    match arg {
+        "open" => open_file(webview),
+        "reset" => {
+        }
+        "exit" => {
+            webview.exit();
+        }
+        _ => unimplemented!(),
+    };
+    Ok(())
+}
+
+fn open_file(webview: &mut WebView<i32>) {
+    match tfd::open_file_dialog("Please choose a file...", "", None) {
+        Some(path) => {
+            let account_table = html_helper_utility::get_active_accounts_with_balances(&path).expect("Files");
+            
+            match webview.eval(&format!(r#"document.querySelector("\#body").innerHTML="{}";"#, account_table)) {
+                Ok(()) => {},
+                Err(webview_error) => {
+                    println!("{}",webview_error);
+                    panic!(format!("There was an error with your html: {}", webview_error));
+                },
+            };
+            
+        },
+        None => tfd::message_box_ok(
+            "Warning",
+            "You didn't choose a file.",
+            MessageBoxIcon::Warning,
+        ),
+    }
+}
+
 
 fn render(webview: &mut WebView<i32>, counter: u32) -> WVResult {
     let user_data = *webview.user_data();

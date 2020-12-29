@@ -443,6 +443,7 @@ dependencies = [
  "rusqlite",
  "time 0.2.23",
  "tinyfiledialogs",
+ "unicode-segmentation",
  "web-view",
 ]
 
