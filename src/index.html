@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <script src="/scripts/app.js"></script>
+    <script src="/scripts/sql.js/1.40/sql-wasm.js"></script>
+    <!-- Note the usage of `type=module` here as this is an ES6 module -->
+    <script type="module">
+      import * as money_manager from '/scripts/money_manager.js';
+
+      async function run() {
+        await money_manager.default('/scripts/money_manager_bg.wasm');
+
+        // make the functions available to the browser
+        window.money_manager = money_manager;
+
+        //chain load sqlite library next, by first getting a config setup
+        var config = {
+          locateFile: (filename, prefix) => {
+            return `scripts/sql.js/1.40/${filename}`;
+          }
+        };
+
+        // and then getting the sqlContext
+        window.sqlContext = await initSqlJs(config);
+        
+      }
+      run();
+    </script>    
+  <head>
+  <body>
+    <div id='MainMenuDiv'>
+      <input type="file" id='file_input' onchange='load_accounts_from_file(this)' />
+    </div>
+  </body>
+<html>
