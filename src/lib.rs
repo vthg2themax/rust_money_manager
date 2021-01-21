@@ -2,7 +2,10 @@ extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
+mod css_helper_utility;
 mod html_helper_utility;
+mod js_helper_utility;
+mod sql_helper_utility;
 
 #[wasm_bindgen]
 extern {
@@ -19,17 +22,17 @@ pub fn main() -> Result<(), JsValue> {
     let document = window.document().expect("should have a document on window");
     let head = document.head().expect("document should have a head");
     
-    let html_document = document.dyn_into::<web_sys::HtmlDocument>().unwrap();
-    let cookie = html_document.cookie().unwrap();
+    // let html_document = document.dyn_into::<web_sys::HtmlDocument>().unwrap();
+    // let cookie = html_document.cookie().unwrap();
     
-    //Check if we have already done this
-    if cookie != "" {
-        return Ok(())    
-    }
+    // //Check if we have already done this
+    // if cookie != "" {
+    //     return Ok(())    
+    // }
 
-    html_document.write(&js_sys::Array::from(&JsValue::from(&html_helper_utility::get_default_page_html())))?;
-    html_document.set_cookie("written")?;
-    html_document.close()?;
+    // html_document.write(&js_sys::Array::from(&JsValue::from(&html_helper_utility::get_default_page_html())))?;
+    // html_document.set_cookie("written")?;
+    // html_document.close()?;
 
     // let style = document.create_element("style")?;
     // style.set_inner_html(&html_helper_utility::get_default_page_css());
@@ -54,7 +57,6 @@ pub fn main() -> Result<(), JsValue> {
 pub fn reverse(s: String) -> String {
     s.chars().rev().collect::<String>()
 }
-
 
 #[wasm_bindgen]
 pub fn add(x: u32, y: u32) -> u32 {

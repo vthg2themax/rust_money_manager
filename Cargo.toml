@@ -19,6 +19,8 @@ features = [
   'Window',
   'CssStyleSheet',
   'StyleSheet',
+  'HtmlInputElement',
+  'FileList',
   'HtmlHeadElement',
   'HtmlDocument',
   ]

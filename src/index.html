@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <link rel="stylesheet" href="/css/app.css">
     <script src="/scripts/app.js"></script>
     <script src="/scripts/sql.js/1.40/sql-wasm.js"></script>
     <!-- Note the usage of `type=module` here as this is an ES6 module -->
@@ -29,8 +30,15 @@
     </script>    
   <head>
   <body>
-    <div id='MainMenuDiv'>
-      <input type="file" id='file_input' onchange='load_accounts_from_file(this)' />
+    <div id="HeaderDiv">
+      <button id="MainMenuAccounts" class="MainMenuButton">Accounts</button>
+      <button id="MainMenuSaveFile" class="MainMenuButton">Save File</button>
+      <button id="MainMenuLoadFile" class="MainMenuButton">
+        Load File
+        <input type="file" id='file_input' />
+      </button>
     </div>
+    <div id='BodyDiv'></div>
+    <div id='FooterDiv'></div>
   </body>
 <html>
