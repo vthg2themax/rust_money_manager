@@ -46,20 +46,3 @@ function load_accounts_from_file_with_balances(file_input) {
     //// Insert two rows: (1,111) and (2,222)
     //db.run("INSERT INTO test VALUES (?,?), (?,?)", [1, 111, 2, 222]);
 
-document.addEventListener("DOMContentLoaded", function(){
-  WireUpControls();
-});
-
-///WireUpControls wires up all the event listeners for the controls on the page.
-function WireUpControls() {
-  //Setup the load file main menu piece
-  document.querySelector('#MainMenuLoadFile').addEventListener('click', function(){
-    document.querySelector('#file_input').click();
-  });
-
-  //setup the load file input piece
-  document.querySelector('#file_input').addEventListener('change', function() {
-    load_accounts_from_file_with_balances(this);
-  });
-
-}

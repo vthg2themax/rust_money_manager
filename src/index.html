@@ -24,21 +24,31 @@
 
         // and then getting the sqlContext
         window.sqlContext = await initSqlJs(config);
+
+        var start_date = new Date();
+        //WireUpControls();
+        var end_date = new Date();
+        console.log(end_date - start_date);
+
+        var start_date = new Date();
+        money_manager.wireup_controls();
+        var end_date = new Date();
+        console.log(end_date - start_date);
         
       }
       run();
     </script>    
   <head>
   <body>
-    <div id="HeaderDiv">
-      <button id="MainMenuAccounts" class="MainMenuButton">Accounts</button>
-      <button id="MainMenuSaveFile" class="MainMenuButton">Save File</button>
-      <button id="MainMenuLoadFile" class="MainMenuButton">
+    <div id="header_div">
+      <button id="main_menu_refresh_accounts" class="main_menu_button">Accounts</button>
+      <button id="main_menu_save_file" class="main_menu_button">Save File</button>
+      <button id="main_menu_load_file" class="main_menu_button">
         Load File
-        <input type="file" id='file_input' />
+        <input type="file" id='money_manager_file_input' />
       </button>
     </div>
-    <div id='BodyDiv'></div>
-    <div id='FooterDiv'></div>
+    <div id='body_div'></div>
+    <div id='footer_div'></div>
   </body>
 <html>

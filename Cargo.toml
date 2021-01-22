@@ -23,10 +23,14 @@ features = [
   'FileList',
   'HtmlHeadElement',
   'HtmlDocument',
+  'HtmlButtonElement',
   ]
 
 [dependencies.js-sys]
 version = "0.3.46"
+features = [
+  
+]
 
 [lib]
 crate-type =["cdylib"]
