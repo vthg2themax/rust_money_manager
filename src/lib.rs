@@ -17,7 +17,38 @@ extern {
 
 #[wasm_bindgen]
 extern {
-    fn load_accounts_from_file_with_balances(file_input: web_sys::HtmlInputElement);
+    fn load_accounts_from_file_with_balances_old(file_input: web_sys::HtmlInputElement);
+}
+
+#[wasm_bindgen()]
+extern "C" {
+    pub type Database;
+
+    #[wasm_bindgen(constructor, js_namespace = sqlContext)]
+    fn new(array: js_sys::Uint8Array) -> Database;
+
+    #[wasm_bindgen(method)]
+    fn prepare(this: &Database, s: &str) -> Statement;
+
+}
+
+#[wasm_bindgen]
+extern "C" {
+    
+    pub type Statement;
+
+    #[wasm_bindgen(constructor)]
+    fn new() -> Statement;
+
+    #[wasm_bindgen(method)]
+    fn bind(this: &Statement);
+
+    #[wasm_bindgen(method)]
+    fn step(this: &Statement) -> bool;
+
+    #[wasm_bindgen(method)]
+    fn getAsObject(this: &Statement) -> JsValue;
+
 }
 
 #[wasm_bindgen]
@@ -26,7 +57,9 @@ extern "C" {
     // `log(..)`
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
-
+   
+    #[wasm_bindgen(js_namespace = JSON)]
+    fn stringify(obj: JsValue) -> String;
 }
 
 // Called when the wasm module is instantiated
@@ -65,6 +98,7 @@ pub fn main() -> Result<(), JsValue> {
 
     // body.set_inner_html(&html_helper_utility::get_default_page_html());    
 
+    init_panic_hook();
 
     Ok(())
 }
@@ -124,6 +158,66 @@ pub fn wireup_controls() {
 
     money_manager_file_input.set_onchange(Some(money_manager_file_input_on_change.as_ref().unchecked_ref()));
     money_manager_file_input_on_change.forget();
+
+}
+
+#[wasm_bindgen]
+pub fn init_panic_hook() {
+    console_error_panic_hook::set_once();
+}
+
+#[wasm_bindgen]
+pub fn load_accounts_from_file_with_balances(file_input : web_sys::HtmlInputElement) {
+    //Check the file list from the input
+    let filelist = file_input.files().expect("Failed to get filelist from File Input!");
+    //Do not allow blank inputs
+    if filelist.length() < 1 {
+        alert("Please select at least one file.");
+        return;
+    }
+    if filelist.get(0) == None {
+        alert("Please select a valid file");
+        return;
+    }
+    
+    let file = filelist.get(0).expect("Failed to get File from filelist!");
+
+    let file_reader : web_sys::FileReader = match web_sys::FileReader::new() {
+        Ok(f) => f,
+        Err(e) => {
+            alert("There was an error creating a file reader");
+            log(&JsValue::as_string(&e).expect("error converting jsvalue to string."));
+            web_sys::FileReader::new().expect("")
+        }
+    };
+
+    let fr_c = file_reader.clone();
+    // create onLoadEnd callback
+    let onloadend_cb = Closure::wrap(Box::new(move |_e: web_sys::ProgressEvent| {
+        let array = js_sys::Uint8Array::new(&fr_c.result().unwrap());
+        let len = array.byte_length() as usize;
+        log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
+        // here you can for example use the received image/png data
+        
+        let db : Database = Database::new(array);
+
+        //Prepare a statement
+        let stmt : Statement = db.prepare(&sql_helper_utility::sql_load_accounts_with_balances());
+        stmt.getAsObject();
+
+        // Bind new values
+        stmt.bind();
+
+        while stmt.step() { //
+            let row = stmt.getAsObject();
+            log(&("Here is a row: ".to_owned() + &stringify(row).to_owned()));
+        }
+
+    }) as Box<dyn Fn(web_sys::ProgressEvent)>);
+
+    file_reader.set_onloadend(Some(onloadend_cb.as_ref().unchecked_ref()));
+    file_reader.read_as_array_buffer(&file).expect("blob not readable");
+    onloadend_cb.forget();
 
 }
 

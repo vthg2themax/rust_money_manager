@@ -22,11 +22,11 @@ function load_accounts_from_file(file_input) {
   r.readAsArrayBuffer(file_input.files[0]);
 }
 
-function load_accounts_from_file_with_balances(file_input) {
+function load_accounts_from_file_with_balances_old(file_input) {
   var r = new FileReader();
   r.onload = function() {
     var Uints = new Uint8Array(r.result);
-    db = new sqlContext.Database(Uints);
+    var db = new sqlContext.Database(Uints);
     // Prepare a statement
     var stmt = db.prepare(money_manager.sql_load_accounts_with_balances());
     stmt.getAsObject();
