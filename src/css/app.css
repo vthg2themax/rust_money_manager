@@ -1,3 +1,19 @@
 #money_manager_file_input {
     display:none;
 }
+
+#accounts_div {
+    display: flex;
+    flex-direction: column;
+}
+
+.account_div {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+}
+
+.account_div * {
+    width: 25vw;
+}

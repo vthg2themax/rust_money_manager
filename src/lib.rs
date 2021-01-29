@@ -4,20 +4,21 @@ extern crate web_sys;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-
+mod accounts_manager;
 mod css_helper_utility;
 mod html_helper_utility;
 mod js_helper_utility;
 mod sql_helper_utility;
 
-#[wasm_bindgen]
-extern {
-    fn alert(s: &str);
-}
+// Create a static mutable byte buffer.
+// We will use for passing memory between js and wasm.
+// NOTE: global `static mut` means we will have "unsafe" code
+// but for passing memory between js and wasm should be fine.
+static mut DATABASE : Vec<Database> = Vec::new();
 
 #[wasm_bindgen]
 extern {
-    fn load_accounts_from_file_with_balances_old(file_input: web_sys::HtmlInputElement);
+    fn alert(s: &str);
 }
 
 #[wasm_bindgen()]
@@ -29,7 +30,7 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     fn prepare(this: &Database, s: &str) -> Statement;
-
+    
 }
 
 #[wasm_bindgen]
@@ -65,6 +66,7 @@ extern "C" {
 // Called when the wasm module is instantiated
 #[wasm_bindgen(start)]
 pub fn main() -> Result<(), JsValue> {
+
     // Use `web_sys`'s global `window` function to get a handle on the global
     // window object.
     // let window = web_sys::window().expect("no global `window` exists");
@@ -159,11 +161,81 @@ pub fn wireup_controls() {
     money_manager_file_input.set_onchange(Some(money_manager_file_input_on_change.as_ref().unchecked_ref()));
     money_manager_file_input_on_change.forget();
 
+    //Setup the refresh accounts handler
+    //Set the onchange handler for the money_manager_file_input        
+    let main_menu_refresh_accounts_on_click = Closure::wrap(Box::new(move || {        
+        let money_manager_file_input = web_sys::window().expect("should have a window")
+                                    .document().expect("should have a document")
+                                    .query_selector("#money_manager_file_input")
+                                    .expect("should have a file input")
+                                    .expect("should have a file input")
+                                    .dyn_into::<web_sys::HtmlInputElement>()
+                                    .unwrap();
+
+        
+
+        //load_accounts_from_file_with_balances(money_manager_file_input);
+        load_accounts_from_memory_with_balances();
+
+    }) as Box<dyn Fn()>);
+    
+    //Set the Accounts handler to show all the accounts
+    let main_menu_accounts = web_sys::window().expect("should have a window")
+                                    .document().expect("should have a document")
+                                    .query_selector("#main_menu_refresh_accounts")
+                                    .expect("should have a main_menu_refresh_accounts")
+                                    .expect("should have a main_menu_refresh_accounts")
+                                    .dyn_into::<web_sys::HtmlElement>()
+                                    .unwrap();
+    main_menu_accounts.set_onclick(Some(main_menu_refresh_accounts_on_click.as_ref().unchecked_ref()));
+    main_menu_refresh_accounts_on_click.forget();
 }
 
 #[wasm_bindgen]
 pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
+}
+
+#[wasm_bindgen]
+pub fn load_accounts_from_memory_with_balances() {
+    unsafe {
+        if DATABASE.len() == 0 {
+            panic!("The DATABASE has a length of 0.");
+        }
+
+        //Prepare a statement
+        let stmt : Statement = DATABASE[0].prepare(&sql_helper_utility::sql_load_accounts_with_balances());
+        stmt.getAsObject();
+
+        // Bind new values
+        stmt.bind();
+
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            //log(&("Here is a row: ".to_owned() + &stringify(row.clone()).to_owned()));
+
+            let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
+            let tags : serde_json::Value = serde_json::from_str(                                    
+                                        stringify(row.clone()).as_str()                                    
+                                ).unwrap();
+
+            let balance = format!("{}",tags["balance"])
+                            .parse::<f64>()
+                            .expect("Balance is not valid!");
+            
+            account.tags.insert("balance".to_string(), balance.to_string());
+    
+                
+            log(format!("The balance is: {}", balance).as_str());
+            
+            accounts.push(account);
+        }
+    
+        html_helper_utility::load_accounts(accounts);
+    
+    }
 }
 
 #[wasm_bindgen]
@@ -198,8 +270,11 @@ pub fn load_accounts_from_file_with_balances(file_input : web_sys::HtmlInputElem
         let len = array.byte_length() as usize;
         log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
         // here you can for example use the received image/png data
+        let db : Database = Database::new(array.clone());
         
-        let db : Database = Database::new(array);
+        unsafe {
+            DATABASE.push(Database::new(array.clone()));
+        }
 
         //Prepare a statement
         let stmt : Statement = db.prepare(&sql_helper_utility::sql_load_accounts_with_balances());
@@ -208,10 +283,28 @@ pub fn load_accounts_from_file_with_balances(file_input : web_sys::HtmlInputElem
         // Bind new values
         stmt.bind();
 
-        while stmt.step() { //
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
             let row = stmt.getAsObject();
-            log(&("Here is a row: ".to_owned() + &stringify(row).to_owned()));
+            //log(&("Here is a row: ".to_owned() + &stringify(row.clone()).to_owned()));
+
+            let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
+            let tags : serde_json::Value = serde_json::from_str(                                    
+                                        stringify(row.clone()).as_str()                                    
+                                ).unwrap();
+
+            let balance = format!("{}",tags["balance"])
+                            .parse::<f64>()
+                            .expect("Balance is not valid!");
+            
+            account.tags.insert("balance".to_string(), balance.to_string());
+
+            //log(format!("The balance is: {}", balance).as_str());
+            accounts.push(account);
         }
+
+        html_helper_utility::load_accounts(accounts);
 
     }) as Box<dyn Fn(web_sys::ProgressEvent)>);
 
