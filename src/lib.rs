@@ -143,9 +143,11 @@ pub fn wireup_controls() {
                                         .expect("should have a file input")
                                         .expect("should have a file input")
                                         .dyn_into::<web_sys::HtmlInputElement>()
-                                        .unwrap();
+                                        .unwrap();            
         
-        load_accounts_from_file_with_balances(money_manager_file_input);
+        html_helper_utility::show_loading_message("Please wait while your file is loaded...".to_string());
+
+        load_accounts_with_balances_into_memory(money_manager_file_input, true);
 
     }) as Box<dyn Fn()>);
 
@@ -164,18 +166,8 @@ pub fn wireup_controls() {
     //Setup the refresh accounts handler
     //Set the onchange handler for the money_manager_file_input        
     let main_menu_refresh_accounts_on_click = Closure::wrap(Box::new(move || {        
-        let money_manager_file_input = web_sys::window().expect("should have a window")
-                                    .document().expect("should have a document")
-                                    .query_selector("#money_manager_file_input")
-                                    .expect("should have a file input")
-                                    .expect("should have a file input")
-                                    .dyn_into::<web_sys::HtmlInputElement>()
-                                    .unwrap();
-
         
-
-        //load_accounts_from_file_with_balances(money_manager_file_input);
-        load_accounts_from_memory_with_balances();
+        load_accounts_with_balances_from_memory();
 
     }) as Box<dyn Fn()>);
     
@@ -196,13 +188,37 @@ pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
+
+pub fn valid_database(incoming_database : js_sys::Uint8Array) -> bool {    
+    
+    if (&incoming_database).to_vec().len() < 16 {
+        alert(&format!("The selected file is not a valid SQLite Database! Its length is {:?}.",
+            (&incoming_database).to_vec().len()));
+        return false;
+    }
+
+    let first_16  = &js_sys::Uint8Array::new(&incoming_database).to_vec()[0..15];
+    let mut descriptor : String = String::from("");
+    for letter in first_16.iter() {
+        descriptor += &(letter.to_ascii_uppercase() as char).to_string();
+    }
+    
+    if !descriptor.starts_with("SQLITE FORMAT") {
+        alert("The selected file does not have a valid SQLite Database header.");
+        return false;
+    }
+    
+    return true;
+}
+
 #[wasm_bindgen]
-pub fn load_accounts_from_memory_with_balances() {
+pub fn load_accounts_with_balances_from_memory() {
     unsafe {
         if DATABASE.len() == 0 {
-            panic!("The DATABASE has a length of 0.");
+            alert("Please select a database to refresh your accounts view.");
+            return;
         }
-
+        
         //Prepare a statement
         let stmt : Statement = DATABASE[0].prepare(&sql_helper_utility::sql_load_accounts_with_balances());
         stmt.getAsObject();
@@ -229,13 +245,77 @@ pub fn load_accounts_from_memory_with_balances() {
     
                 
             log(format!("The balance is: {}", balance).as_str());
-            
+
             accounts.push(account);
         }
     
-        html_helper_utility::load_accounts(accounts);
+        html_helper_utility::load_accounts_into_body(accounts);
     
     }
+}
+
+/// load_accounts_with_balances_into_memory, creates a filereader to load the account into memory,
+/// it also accepts a boolean to let you know whether to load the file contents into the body for 
+/// accounts afterwards.
+#[wasm_bindgen]
+pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputElement, 
+                                                load_accounts_into_body_after_load : bool) {
+    
+    //Check the file list from the input
+    let filelist = file_input.files().expect("Failed to get filelist from File Input!");
+    //Do not allow blank inputs
+    if filelist.length() < 1 {
+        alert("Please select at least one file.");
+        return;
+    }
+    if filelist.get(0) == None {
+        alert("Please select a valid file");
+        return;
+    }
+    
+    let file = filelist.get(0).expect("Failed to get File from filelist!");
+
+    let file_reader : web_sys::FileReader = match web_sys::FileReader::new() {
+        Ok(f) => f,
+        Err(e) => {
+            alert("There was an error creating a file reader");
+            log(&JsValue::as_string(&e).expect("error converting jsvalue to string."));
+            web_sys::FileReader::new().expect("")
+        }
+    };
+
+    let fr_c = file_reader.clone();
+    // create onLoadEnd callback
+    let onloadend_cb = Closure::wrap(Box::new(move |_e: web_sys::ProgressEvent| {
+        let array = js_sys::Uint8Array::new(&fr_c.result().unwrap());
+        let len = array.byte_length() as usize;
+        log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
+        
+
+        //Check for a valid database now that we have the bytes
+        if !valid_database(array.clone()) {            
+            html_helper_utility::hide_loading_message();
+            return;
+        }
+
+        unsafe {
+            if DATABASE.len() > 0 {
+                DATABASE.clear();
+            }
+            
+            DATABASE.push(Database::new(array.clone()));
+        }
+
+        if load_accounts_into_body_after_load {
+            load_accounts_with_balances_from_memory();
+        }
+        
+    }) as Box<dyn Fn(web_sys::ProgressEvent)>);
+
+    file_reader.set_onloadend(Some(onloadend_cb.as_ref().unchecked_ref()));
+    file_reader.read_as_array_buffer(&file).expect("blob not readable");
+    onloadend_cb.forget();
+
 }
 
 #[wasm_bindgen]
@@ -304,7 +384,7 @@ pub fn load_accounts_from_file_with_balances(file_input : web_sys::HtmlInputElem
             accounts.push(account);
         }
 
-        html_helper_utility::load_accounts(accounts);
+        html_helper_utility::load_accounts_into_body(accounts);
 
     }) as Box<dyn Fn(web_sys::ProgressEvent)>);
 

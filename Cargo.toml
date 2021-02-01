@@ -55,6 +55,7 @@ features = [
   "Blob",
   "ProgressEvent",
   "ErrorEvent",
+  "CssStyleDeclaration"
   ]
 
 [dependencies.js-sys]
