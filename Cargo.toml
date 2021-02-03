@@ -59,6 +59,8 @@ features = [
   "ErrorEvent",
   "CssStyleDeclaration",
   "DomStringMap",
+  "HtmlAnchorElement",
+  "DomTokenList"
   ]
 
 [dependencies.js-sys]

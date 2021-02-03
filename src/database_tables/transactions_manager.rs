@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use uuid::Uuid;
+use chrono::prelude::*;
 //use crate::database_helper_utility as dhu;
 //use chrono::prelude::*;
 //use time::Duration;
@@ -53,29 +54,40 @@ impl std::fmt::Display for AccountType {
 //     }
 // }
 
-impl Account {
-    pub fn new() {
+// impl Account {
+//     pub fn new() {
 
-    }
-}
+//     }
+// }
 
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Account {
-    pub guid: Uuid, //guid is the GUID for this account.
-    pub name: String, //Name is the name of the account.
-    pub account_type: AccountType, //Account_Type is the account type. (Ex: 'ROOT' or 'CREDIT')
-    pub commodity_guid: Option<Uuid>,//Commodity_Guid is the commodity guid the account uses. Ex: USD or YEN.
-    pub commodity_scu: i64,//Commodity_Scu is the commodity scu. -1 by default
-    pub non_std_scu: i64, //Non_Std_Scu is the non std scu. -1 by default
-    pub parent_guid: Option<Uuid>, //Parent_Guid is the parent of this account's GUID. null guid by default
-    pub code: String, //Code is the code for this account. Blank by default
-    pub description: String, //Description is the description for this account. Blank by default.
-    pub hidden: Bool, //Hidden is a bit field whether this account is hidden or not.
-    pub placeholder: Bool, //Placeholder is whether this account is a placeholder account. (1 for yes, 0 for no)
-    #[serde(skip)] 
-    pub tags: HashMap<String, String>, //tags is a hash map of data for this record, such as balance amount
+pub struct Transaction {
+    pub guid: Uuid, //guid is the GUID for this transaction
+    pub currency_guid: Uuid,//currency_Guid is the commodity guid the account uses. Ex: USD or YEN.
+    pub num : String,//Num is the invoice.id that this transaction belongs to. 
+    pub post_date : String, //post_date is the date this transaction is posted. (Ex: '20120801040000' is 'Aug 1 2012')
+    pub enter_date : String, //enter_date is the date this transaction was entered. (Ex: '20120801040000' is 'Aug 1 2012')
+    pub description : String, //description is the description for this transaction.
+}
+
+/// TransactionWithOtherHalfOfSplitInformation holds one half of the split information along
+/// with the Transaction data for this transaction guid.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TransactionWithSplitInformation {
+    pub excluded_account_guid : Uuid, //excluded_account_guid is the account_guid that this information was for. Usually the account currently displaying transactions for.
+    pub excluded_account_name : String, //excluded_account_name is the account_name that this information was for. Usuallly the account name currently displaying this transaction.
+    pub guid: Uuid, //guid is the GUID for this transaction
+    pub currency_guid: Uuid,//currency_Guid is the commodity guid the account uses. Ex: USD or YEN.
+    pub num : String,//Num is the invoice.id that this transaction belongs to. 
+    pub post_date : String, //post_date is the date this transaction is posted. (Ex: '20120801040000' is 'Aug 1 2012')
+    pub enter_date : String, //enter_date is the date this transaction was entered. (Ex: '20120801040000' is 'Aug 1 2012')
+    pub description : String, //description is the description for this transaction.
+    pub value_num : i64,//value_num is the numerator for the transaction
+    pub value_denom : i64,//value_denom is the denominator for the transaction
+    pub account_name : String,//account_name is the account.name for this transaction
+    pub account_guid : Uuid,//account_guid is the account.guid for this transaction
 }
 
 //_Fields: guid,name,account_type,commodity_guid,commodity_scu,non_std_scu,

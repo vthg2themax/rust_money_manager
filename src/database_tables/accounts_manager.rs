@@ -53,11 +53,11 @@ impl std::fmt::Display for AccountType {
 //     }
 // }
 
-impl Account {
-    pub fn new() {
+// impl Account {
+//     pub fn new() {
 
-    }
-}
+//     }
+// }
 
 
 

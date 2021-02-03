@@ -2,11 +2,11 @@ extern crate wasm_bindgen;
 extern crate web_sys;
 
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 
 mod database_tables;
 mod utility;
 use utility::database_helper_utility as dhu;
+use utility::html_helper_utility as hhu;
 
 // Create a static mutable byte buffer.
 // We will use for passing memory between js and wasm.
@@ -52,6 +52,8 @@ pub fn main() -> Result<(), JsValue> {
     // body.set_inner_html(&html_helper_utility::get_default_page_html());    
 
     init_panic_hook();
+
+    hhu::wireup_controls();
 
     Ok(())
 }
