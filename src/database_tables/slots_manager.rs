@@ -1,7 +1,4 @@
-use rusqlite::*;
-use guid_create::GUID;
-use crate::database_helper_utility as dhu;
-
+use uuid::Uuid;
 // id,obj_guid,name,slot_type,int64_val,string_val,double_val,timespec_val,guid_val,
 // numeric_val_num,numeric_val_denom,gdate_val 
 
@@ -9,7 +6,7 @@ use crate::database_helper_utility as dhu;
 #[derive(Debug)]
 pub struct Slot {
     pub id: i64, //id is the Slot's id, it's an autoincrementing integer. Set to -1 to allow it to do that.
-    pub obj_guid: GUID, //obj_guid is the object guid associated with this record.
+    pub obj_guid: Uuid, //obj_guid is the object guid associated with this record.
     pub name: String, //name is the name that this slot is associated with. (Ex: 'notes' means a note on a transaction.)
     pub slot_type: i64, //slot_type is the integer type for this slot. (Ex: '4' means a note about a transaction.,'10' means a date-posted)
     pub int64_val: i64, //int64 is 0, unless it's actually used.
@@ -29,97 +26,97 @@ pub fn _fields() -> String {
          )
 } 
 
-pub fn read_row_into_new_slot(incoming_row: &rusqlite::Row<'_>) -> Result<Slot> {
-    Ok(
-        Slot {
-            id: incoming_row.get(0)?,
-            obj_guid: dhu::convert_string_result_to_guid(incoming_row.get(1))?,
-            name: incoming_row.get(2)?,
-            slot_type: incoming_row.get(3)?,
-            int64_val: incoming_row.get(4)?,
-            string_val: incoming_row.get(5)?,
-            double_val: incoming_row.get(6)?,
-            timespec_val: incoming_row.get(7)?,
-            guid_val: incoming_row.get(8)?,
-            numeric_val_num: incoming_row.get(9)?,
-            numeric_val_denom: incoming_row.get(10)?,
-            gdate_val: incoming_row.get(11)?,
-        }
-    )
-}
+// pub fn read_row_into_new_slot(incoming_row: &rusqlite::Row<'_>) -> Result<Slot> {
+//     Ok(
+//         Slot {
+//             id: incoming_row.get(0)?,
+//             obj_guid: dhu::convert_string_result_to_guid(incoming_row.get(1))?,
+//             name: incoming_row.get(2)?,
+//             slot_type: incoming_row.get(3)?,
+//             int64_val: incoming_row.get(4)?,
+//             string_val: incoming_row.get(5)?,
+//             double_val: incoming_row.get(6)?,
+//             timespec_val: incoming_row.get(7)?,
+//             guid_val: incoming_row.get(8)?,
+//             numeric_val_num: incoming_row.get(9)?,
+//             numeric_val_denom: incoming_row.get(10)?,
+//             gdate_val: incoming_row.get(11)?,
+//         }
+//     )
+// }
 
 
-pub fn retrieve_all_for_obj_guid(file_path: &str, incoming_guid: GUID) -> Result<Vec<Slot>> {
-    //Attempt to open the file from the given path to perform this operation
-    let conn = Connection::open(file_path)?;
-    //Get all the book records
-    let sql : String = String::from(
-        ["SELECT ",&_fields()," FROM slots WHERE obj_guid=@obj_guid ", 
-         ""].join(""));
-    let mut stmt = conn.prepare(&sql)?;
-    //Get all the commodities into a vector for returning the result
-    let mut slots : Vec<Slot> = Vec::new();
-    let mapped_rows = stmt.query_map_named(
-        named_params!{"@obj_guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, 
-        |row|
-        read_row_into_new_slot(row)
-    )?;
+// pub fn retrieve_all_for_obj_guid(file_path: &str, incoming_guid: GUID) -> Result<Vec<Slot>> {
+//     //Attempt to open the file from the given path to perform this operation
+//     let conn = Connection::open(file_path)?;
+//     //Get all the book records
+//     let sql : String = String::from(
+//         ["SELECT ",&_fields()," FROM slots WHERE obj_guid=@obj_guid ", 
+//          ""].join(""));
+//     let mut stmt = conn.prepare(&sql)?;
+//     //Get all the commodities into a vector for returning the result
+//     let mut slots : Vec<Slot> = Vec::new();
+//     let mapped_rows = stmt.query_map_named(
+//         named_params!{"@obj_guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, 
+//         |row|
+//         read_row_into_new_slot(row)
+//     )?;
 
-    //Now we can put each of the mapped row results into the results vector
-    for row in mapped_rows {
-        slots.push(row?);
-    }    
+//     //Now we can put each of the mapped row results into the results vector
+//     for row in mapped_rows {
+//         slots.push(row?);
+//     }    
 
-    Ok(slots)
-}
+//     Ok(slots)
+// }
 
-pub fn retrieve_all_for_name(file_path: &str, incoming_name: String) -> Result<Vec<Slot>> {
-    //Attempt to open the file from the given path to perform this operation
-    let conn = Connection::open(file_path)?;
-    //Get all the book records
-    let sql : String = String::from(
-        ["SELECT ",&_fields()," FROM slots WHERE name=@name ", 
-         ""].join(""));
-    let mut stmt = conn.prepare(&sql)?;
-    //Get all the commodities into a vector for returning the result
-    let mut slots : Vec<Slot> = Vec::new();
-    let mapped_rows = stmt.query_map_named(
-        named_params!{"@name": incoming_name }, 
-        |row|
-        read_row_into_new_slot(row)
-    )?;
+// pub fn retrieve_all_for_name(file_path: &str, incoming_name: String) -> Result<Vec<Slot>> {
+//     //Attempt to open the file from the given path to perform this operation
+//     let conn = Connection::open(file_path)?;
+//     //Get all the book records
+//     let sql : String = String::from(
+//         ["SELECT ",&_fields()," FROM slots WHERE name=@name ", 
+//          ""].join(""));
+//     let mut stmt = conn.prepare(&sql)?;
+//     //Get all the commodities into a vector for returning the result
+//     let mut slots : Vec<Slot> = Vec::new();
+//     let mapped_rows = stmt.query_map_named(
+//         named_params!{"@name": incoming_name }, 
+//         |row|
+//         read_row_into_new_slot(row)
+//     )?;
 
-    //Now we can put each of the mapped row results into the results vector
-    for row in mapped_rows {
-        slots.push(row?);
-    }    
+//     //Now we can put each of the mapped row results into the results vector
+//     for row in mapped_rows {
+//         slots.push(row?);
+//     }    
 
-    Ok(slots)
-}
+//     Ok(slots)
+// }
 
-pub fn retrieve_all_for_guid_val(file_path: &str, incoming_guid: GUID) -> Result<Vec<Slot>> {
-    //Attempt to open the file from the given path to perform this operation
-    let conn = Connection::open(file_path)?;
-    //Get all the book records
-    let sql : String = String::from(
-        ["SELECT ",&_fields()," FROM slots WHERE guid_val=@guid_val ", 
-         ""].join(""));
-    let mut stmt = conn.prepare(&sql)?;
-    //Get all the commodities into a vector for returning the result
-    let mut slots : Vec<Slot> = Vec::new();
-    let mapped_rows = stmt.query_map_named(
-        named_params!{"@guid_val": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, 
-        |row|
-        read_row_into_new_slot(row)
-    )?;
+// pub fn retrieve_all_for_guid_val(file_path: &str, incoming_guid: GUID) -> Result<Vec<Slot>> {
+//     //Attempt to open the file from the given path to perform this operation
+//     let conn = Connection::open(file_path)?;
+//     //Get all the book records
+//     let sql : String = String::from(
+//         ["SELECT ",&_fields()," FROM slots WHERE guid_val=@guid_val ", 
+//          ""].join(""));
+//     let mut stmt = conn.prepare(&sql)?;
+//     //Get all the commodities into a vector for returning the result
+//     let mut slots : Vec<Slot> = Vec::new();
+//     let mapped_rows = stmt.query_map_named(
+//         named_params!{"@guid_val": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, 
+//         |row|
+//         read_row_into_new_slot(row)
+//     )?;
 
-    //Now we can put each of the mapped row results into the results vector
-    for row in mapped_rows {
-        slots.push(row?);
-    }    
+//     //Now we can put each of the mapped row results into the results vector
+//     for row in mapped_rows {
+//         slots.push(row?);
+//     }    
 
-    Ok(slots)
-}
+//     Ok(slots)
+// }
 
 
 
@@ -514,32 +511,32 @@ pub fn retrieve_all_for_guid_val(file_path: &str, incoming_guid: GUID) -> Result
     
 // }
 
-pub fn delete_existing(file_path : &str, incoming_obj_guid : GUID) -> Result<bool> {
-    //Attempt to open the file from the given path to perform this operation
-    let conn = Connection::open(file_path)?;
+// pub fn delete_existing(file_path : &str, incoming_obj_guid : GUID) -> Result<bool> {
+//     //Attempt to open the file from the given path to perform this operation
+//     let conn = Connection::open(file_path)?;
     
-    let sql = 
-        ["DELETE FROM slots ",
-        " WHERE obj_guid=@obj_guid"
-        ].join("");
+//     let sql = 
+//         ["DELETE FROM slots ",
+//         " WHERE obj_guid=@obj_guid"
+//         ].join("");
 
-    let result = conn.execute_named(&sql,
-        named_params!{
-            "@obj_guid" : dhu::convert_guid_to_sqlite_string(
-                                                incoming_obj_guid)?,
-        }
-        ).unwrap();    
+//     let result = conn.execute_named(&sql,
+//         named_params!{
+//             "@obj_guid" : dhu::convert_guid_to_sqlite_string(
+//                                                 incoming_obj_guid)?,
+//         }
+//         ).unwrap();    
 
     
-    if result != 1 {
-        panic!(format!("There were {0} record changes instead of just 1!",
-                        result.to_string())
-        );
-    }
+//     if result != 1 {
+//         panic!(format!("There were {0} record changes instead of just 1!",
+//                         result.to_string())
+//         );
+//     }
 
-    Ok(true)
+//     Ok(true)
     
-}
+// }
 
 #[cfg(test)]
 mod tests {

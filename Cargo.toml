@@ -10,6 +10,8 @@ edition = "2018"
 console_error_panic_hook = "0.1.6"
 serde_json = "1.0.61"
 serde_repr = "0.1.6"
+regex = "1.4.3"
+chrono = "0.4.19"
 
 [dependencies.serde_derive]
 version = "1.0.123"
@@ -55,7 +57,8 @@ features = [
   "Blob",
   "ProgressEvent",
   "ErrorEvent",
-  "CssStyleDeclaration"
+  "CssStyleDeclaration",
+  "DomStringMap",
   ]
 
 [dependencies.js-sys]

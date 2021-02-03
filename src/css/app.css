@@ -98,3 +98,11 @@
   }
 }
 
+/*Style the href=# links */ 
+a:link {
+color: #00458b;
+}
+
+a:visited {
+color: #00458b;
+}
