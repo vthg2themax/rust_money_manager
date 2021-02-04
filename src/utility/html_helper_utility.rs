@@ -411,43 +411,52 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
     body_div.append_child(&transactions_div).expect("Failed to append transactions_div to body!");
 
     for txn in transactions_with_splits {
+        //Setup the query_selector acceptable guid
+        let txn_guid_selector = format!("transaction_{}", &dhu::convert_guid_to_sqlite_string(&txn.guid));
+
         //Create transaction div
         let transaction_div = document_create_element("div");
         transaction_div.class_list().add_1("body_row").expect("Failed to add class to element.");
-    //     //Put it inside the accounts div
-    //     accounts_div.append_child(&account_div).expect("Failed to append account_div to accounts_div!");
+        //Put it inside the transactions div
+        transactions_div.append_child(&transaction_div).expect("Failed to append transaction_div to accounts_div!");
 
-    //     //Setup the account link, and place it inside the accounts div
-    //     let account_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
-    //     account_link.set_text_content(Some(&format!("{}",account.name)));
-    //     account_link.set_href("#");
-    //     account_link.set_id(&format!("account_link_{}",&account.guid));
-    //     account_link.dataset().set("guid", &account.guid.to_string()).expect("Failed to set dataset's account.guid!");
-    //     account_div.append_child(&account_link).expect("Failed to append account_link to account_div!");
+        //Setup the transaction link, and place it inside the transactions div
+        let edit_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
+        let result = match dhu::convert_string_to_date(&txn.post_date) {
+            Ok(e) => {
+                e
+            },
+            Err(ex) => {
+                panic!(ex);
+            }
+        };
 
-    //     //Setup the account_link handler
-    //     let account_guid = account.guid;
-    //     let account_link_on_click = Closure::wrap(Box::new(move || {
-    //         let account_link = document_query_selector(&format!("account_link_{}",account_guid));
-    //         load_account_into_body(account_link);
-    //     }) as Box<dyn Fn()>);
+        edit_link.set_text_content(Some(&result.format("%m/%d/%Y").to_string()));
+        edit_link.set_href("#");
+        edit_link.set_id(&txn_guid_selector);
+        edit_link.dataset().set("guid", 
+                                &dhu::convert_guid_to_sqlite_string(&txn.guid))
+                                .expect("Failed to set dataset's txn_guid!");
+                                
+        transactions_div.append_child(&edit_link).expect("Failed to append edit_link to div!");
 
-    //     account_link.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));
-    //     account_link_on_click.forget();        
+        //Setup the edit_link handler
+        let edit_link_on_click = Closure::wrap(Box::new(move || {
+            let edit_link = document_query_selector(&format!("#{}",txn_guid_selector));
+            //load_transaction_editor_into_body(edit_link);
+        }) as Box<dyn Fn()>);
 
-    //     //Setup the account type, and place it inside the account div
-    //     let account_type = document_create_element("div");
-    //     account_type.set_text_content(
-    //         Some(format!("{}",&account.account_type).as_str())
-    //     );
-    //     account_div.append_child(&account_type).expect("Failed to append account_type to account_div!");
+        edit_link.set_onclick(Some(edit_link_on_click.as_ref().unchecked_ref()));
+        edit_link_on_click.forget();        
 
-    //     //Setup the account balance, and place it inside the account div
-    //     let account_balance = document_create_element("div");
-    //     account_balance.set_inner_html(
-    //         &format!("{}",&account.tags.get("balance").unwrap_or(&"No balance tag!".to_string()))
-    //     );
-    //     account_div.append_child(&account_balance).expect("Failed to append account_balance to account_div!");
+        //Setup the transaction description, and place it inside the account div
+        let txn_description = document_create_element("div");
+        txn_description.set_text_content(
+            Some(format!("{}",&txn.description).as_str())
+        );
+        transactions_div.append_child(&txn_description).expect("Failed to append txn_description to div!");
+
+        
     }
 }
 
@@ -465,7 +474,8 @@ pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
 
     for account in accounts {
         //Setup the query_selector acceptable guid
-        let account_guid = dhu::convert_guid_to_sqlite_string(account.guid);
+        let account_guid_selector = format!("account_{}",
+                                            dhu::convert_guid_to_sqlite_string(&account.guid));
 
         //Create account div
         let account_div = document_create_element("div");
@@ -477,13 +487,16 @@ pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
         let account_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
         account_link.set_text_content(Some(&format!("{}",account.name)));
         account_link.set_href("#");
-        account_link.set_id(&format!("account_link_{}", account_guid));
-        account_link.dataset().set("guid", &account_guid).expect("Failed to set dataset's account.guid!");
+        account_link.set_id(&account_guid_selector);
+        account_link.dataset().set("guid", 
+                                    &dhu::convert_guid_to_sqlite_string(&account.guid))
+                                    .expect("Failed to set dataset's account.guid!");
+
         account_div.append_child(&account_link).expect("Failed to append account_link to account_div!");
 
         //Setup the account_link handler
         let account_link_on_click = Closure::wrap(Box::new(move || {
-            let account_link = document_query_selector(&format!("#account_link_{}",account_guid));
+            let account_link = document_query_selector(&format!("#{}",&account_guid_selector));
             load_transactions_for_account_into_body(account_link);
         }) as Box<dyn Fn()>);
 
@@ -494,6 +507,13 @@ pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
         let account_type = document_create_element("div");
         account_type.set_text_content(
             Some(format!("{}",&account.account_type).as_str())
+        );
+        account_div.append_child(&account_type).expect("Failed to append account_type to account_div!");
+
+        //Setup the account description, and place it inside the account div
+        let account_description = document_create_element("div");
+        account_description.set_text_content(
+            Some(format!("{}",&account.description).as_str())
         );
         account_div.append_child(&account_type).expect("Failed to append account_type to account_div!");
 

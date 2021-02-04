@@ -1,12 +1,12 @@
 #header, #body {
-  margin: 1vh 1vh;
+  margin: 1vh 0vh;
 }
 
 #money_manager_file_input {
     display:none;
 }
 
-#body_table {
+.body_table {
     display: flex;
     flex-direction: column;
     max-height: 80vh;

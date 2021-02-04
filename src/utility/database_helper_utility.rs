@@ -122,7 +122,7 @@ pub fn convert_string_to_guid(incoming_string : String) -> Result<Uuid,String> {
 
 ///convert_guid_to_sqlite_string converts a guid to an sqlite string if possible, 
 /// like so: f737a4904dac6736c7d8fe7b765ee354
-pub fn convert_guid_to_sqlite_string(incoming_guid : Uuid) -> String {    
+pub fn convert_guid_to_sqlite_string(incoming_guid : &Uuid) -> String {    
     let mut incoming_guid = incoming_guid.to_string().to_lowercase();
     //If it's 36 characters, we chop off the dashes
     if incoming_guid.chars().count() == 36 {
@@ -171,6 +171,19 @@ pub fn convert_string_to_date_format(incoming_date : &mut chrono::NaiveDateTime,
         }
     }    
 
+}
+
+/// convert_string_to_date_format attempts to convert a string to a NaiveDateTime
+/// Warning! Will panic if the string is invalid.
+pub fn convert_string_to_date(incoming_string: &str) -> Result<chrono::NaiveDateTime,String> {
+     match NaiveDateTime::parse_from_str(incoming_string, FORMAT_STRING) {
+        Ok(e) => {
+            return Ok(e);
+        },
+        Err(_) => {
+            return Err(format!("Failed to convert the given string '{}' to a date.", incoming_string));
+        }
+    };
 }
 
 // /// MakeBackupCopiesOfFile makes backups of the file and saves copies
