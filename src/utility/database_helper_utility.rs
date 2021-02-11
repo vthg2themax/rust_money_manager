@@ -1,7 +1,7 @@
 /// database_helper_utility will be all the functions that have to do with database functionality, 
 /// and helper methods to deal with the database. Nothing user facing should show here, so no alerts,
 /// or other GUI things please.
-
+use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 use wasm_bindgen::prelude::*;
@@ -20,9 +20,6 @@ extern "C" {
     #[wasm_bindgen(method)]
     pub fn prepare(this: &Database, s: &str) -> Statement;
     
-    /// Free the memory allocated during parameter binding
-    #[wasm_bindgen(method)]
-    pub fn freemem(this: &Database);
 }
 
 #[wasm_bindgen]
@@ -42,6 +39,10 @@ extern "C" {
     /// Free the memory used by the statement
     #[wasm_bindgen(method)]
     pub fn free(this: &Statement) -> bool;
+
+    /// Free the memory allocated during parameter binding
+    #[wasm_bindgen(method)]
+    pub fn freemem(this: &Statement);
 
     #[wasm_bindgen(method)]
     pub fn step(this: &Statement) -> bool;
@@ -131,6 +132,36 @@ pub fn convert_guid_to_sqlite_string(incoming_guid : &Uuid) -> String {
 
     return incoming_guid;
 
+}
+
+/// format_money formats the incoming string to be displayed like you would expect money
+/// to be. Ex: 1_000_000.2 turns into 1,000,000.20
+pub fn format_money(incoming_float : f64) -> String {    
+    use format_num::{format_num};
+
+    format!("${}",format_num!(",.2", incoming_float))
+    
+}
+
+/// remove_rist_and_last_double_quotes_from_string removes the first and last double
+/// quotes (") from th
+pub fn remove_first_and_last_double_quotes_from_string(incoming_string : String) -> String {
+    
+    //If the string does not have double quotes, return it
+    let regex = Regex::new(r#"".*""#).unwrap();
+
+    if !regex.is_match(&incoming_string) {
+        return incoming_string;
+    }
+
+    //Skip the first double quote "
+    return String::from(incoming_string.graphemes(true)
+                                        .skip("\"".len())
+                                        .take(incoming_string.len() - "\"\"".len())
+                                        .collect::<String>()
+    );
+
+    
 }
 
 // ///convert_guid_to_sqlite_parameter converts a guid to an sqlite string if possible, 

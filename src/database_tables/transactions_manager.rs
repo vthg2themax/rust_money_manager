@@ -78,6 +78,7 @@ pub struct Transaction {
 pub struct TransactionWithSplitInformation {
     pub excluded_account_guid : Uuid, //excluded_account_guid is the account_guid that this information was for. Usually the account currently displaying transactions for.
     pub excluded_account_name : String, //excluded_account_name is the account_name that this information was for. Usuallly the account name currently displaying this transaction.
+    pub excluded_account_mnemonic : String, //excluded_account_mnemonic is the account mnemonic that this information was fo. Usually the account currentyly displaying transactions for.
     pub guid: Uuid, //guid is the GUID for this transaction
     pub currency_guid: Uuid,//currency_Guid is the commodity guid the account uses. Ex: USD or YEN.
     pub num : String,//Num is the invoice.id that this transaction belongs to. 

@@ -6,24 +6,70 @@
     display:none;
 }
 
+.body_table_header {
+  display: flex;
+  flex-direction: row;
+  background-color: turquoise;
+  max-width: 98vw;
+}
+
 .body_table {
     display: flex;
     flex-direction: column;
     max-height: 80vh;
-    overflow:scroll;
+    overflow: scroll;
+    min-height: 80vh;
 }
 
 .body_row {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    justify-content: space-between;
+    max-width: 98vw;
 }
 
-.body_row * {
+/*alternating colors*/
+.body_row:nth-child(1n) {
+    background-color: cornsilk;
+}
+.body_row:nth-child(2n) {
+    background-color: lightgrey;
+}
+
+/*Specific Account classes*/
+.account_name {
     width: 25vw;
 }
+.account_type {
+    width: 25vw;
+}
+.account_description {
+    width: 25vw;
+}
+.account_balance {
+    width: 25vw;
+    text-align: end;
+}
 
+/*Specific Tranasction classes*/
+.transaction_post_date {
+    width: 16vw;
+}
+.transaction_description {
+    width: 20vw;
+}
+.transaction_category {
+    width: 16vw;
+}
+.transaction_decrease {
+    width: 16vw;
+}
+.transaction_increase {
+    width: 16vw;
+}
+.transaction_balance {
+    width: 16vw;
+}
 /*Css For Loading Image*/
 .lds-spinner {
   color: official;

@@ -21,6 +21,18 @@ extern "C" {
    
     #[wasm_bindgen(js_namespace = JSON)]
     pub fn stringify(obj: JsValue) -> String;
+
+}
+
+#[wasm_bindgen()]
+extern "C" {
+    pub type Number;
+    
+    #[wasm_bindgen(constructor)]
+    pub fn new(number : f64) -> Number;
+
+    #[wasm_bindgen(method)]
+    pub fn toLocaleString(this: &Number) -> String;
 }
 
 /// The following are globally accessible JavaScript Rust bindings.

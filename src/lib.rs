@@ -1,5 +1,6 @@
 extern crate wasm_bindgen;
 extern crate web_sys;
+extern crate unicode_segmentation;
 
 use wasm_bindgen::prelude::*;
 

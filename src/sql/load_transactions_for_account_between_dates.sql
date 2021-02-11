@@ -17,7 +17,20 @@ FROM splits WHERE splits.tx_guid In (
 	SELECT transactions.guid FROM transactions where transactions.guid IN (
 		SELECT splits.tx_guid FROM splits where splits.account_guid=?
 	) 
-) AND splits.account_guid NOT IN (?)
+) AND splits.account_guid NOT IN (?) AND 
+	       substr(post_date,0,5)||"-"||
+           substr(post_date,5,2)||"-"||
+           substr(post_date,7,2)||" "||
+           substr(post_date,9,2)||":"||
+           substr(post_date,11,2)||":"||
+           substr(post_date,13,2) >= ? AND
+           substr(post_date,0,5)||"-"||
+           substr(post_date,5,2)||"-"||
+           substr(post_date,7,2)||" "||
+           substr(post_date,9,2)||":"||
+           substr(post_date,11,2)||":"||
+           substr(post_date,13,2) <= ?
+    
 ORDER BY (
     SELECT substr(post_date,0,5)||"-"||
            substr(post_date,5,2)||"-"||

@@ -67,7 +67,7 @@ pub struct Account {
     pub name: String, //Name is the name of the account.
     pub account_type: AccountType, //Account_Type is the account type. (Ex: 'ROOT' or 'CREDIT')
     pub commodity_guid: Option<Uuid>,//Commodity_Guid is the commodity guid the account uses. Ex: USD or YEN.
-    pub commodity_scu: i64,//Commodity_Scu is the commodity scu. -1 by default
+    pub commodity_scu: i64,//Commodity_Scu is the commodity scu. 100 for USD.
     pub non_std_scu: i64, //Non_Std_Scu is the non std scu. -1 by default
     pub parent_guid: Option<Uuid>, //Parent_Guid is the parent of this account's GUID. null guid by default
     pub code: String, //Code is the code for this account. Blank by default
