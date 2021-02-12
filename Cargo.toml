@@ -65,7 +65,8 @@ features = [
   "CssStyleDeclaration",
   "DomStringMap",
   "HtmlAnchorElement",
-  "DomTokenList"
+  "DomTokenList",
+  "HtmlTextAreaElement",
   ]
 
 [dependencies.js-sys]

@@ -351,6 +351,9 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
         let transaction_editor = document_create_transaction_editor();
         footer_div.append_child(&transaction_editor).expect("Failed to setup transaction editor!");
 
+        //scroll to the bottom of the transaction_div
+        let transaction_div = document_query_selector("#transaction_div");
+        transaction_div.set_scroll_top(transaction_div.scroll_height());
     }
     
 }
@@ -482,41 +485,82 @@ pub fn document_create_transaction_editor() -> web_sys::HtmlElement {
     transaction_editor_div.append_child(&transaction_editor_top_row).expect(&error_message);
 
     //create the date input
-    let date_input = document_create_element("input")
-                        .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-    date_input.set_type("date");
-    date_input.set_id("date_input");
-    date_input.set_value(&chrono::Local::now().naive_local().format("%Y-%m-%d").to_string());
-    transaction_editor_top_row.append_child(&date_input).expect(&error_message);
+    {
+        let date_input = document_create_element("input")
+                            .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+        date_input.set_type("date");
+        date_input.set_id("date_input");
+        date_input.set_value(&chrono::Local::now().naive_local().format("%Y-%m-%d").to_string());
+        transaction_editor_top_row.append_child(&date_input).expect(&error_message);
+    }
 
     //create the time input
-    let time_input = document_create_element("input")
-                        .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-    time_input.set_type("time");
-    time_input.set_id("time_input");
-    time_input.set_step("1");
-    time_input.set_value(&chrono::Local::now().naive_local().format("%H:%M:00").to_string());
-    transaction_editor_top_row.append_child(&time_input).expect(&error_message);
+    {
+        let time_input = document_create_element("input")
+                            .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+        time_input.set_type("time");
+        time_input.set_id("time_input");
+        time_input.set_step("1");
+        time_input.set_value(&chrono::Local::now().naive_local().format("%H:%M:00").to_string());
+        transaction_editor_top_row.append_child(&time_input).expect(&error_message);
+    }
 
     //create the description input
-    let description_input = document_create_element("input")
-                            .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-    description_input.set_type("text");
-    description_input.set_id("time_input");
-    description_input.set_value("");
-    transaction_editor_top_row.append_child(&description_input).expect(&error_message);
+    {
+        let description_input = document_create_element("input")
+                                .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+        description_input.set_type("text");
+        description_input.set_id("description_input");
+        description_input.set_value("");
+        description_input.set_placeholder("Description");
+        transaction_editor_top_row.append_child(&description_input).expect(&error_message);
+    }
+    //Create the Category input next
+    {
+        let category_input = document_create_element("input")
+                                .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+        category_input.set_type("text");
+        category_input.set_id("category_input");
+        category_input.set_value("");
+        category_input.set_placeholder("Category");
+        transaction_editor_top_row.append_child(&category_input).expect(&error_message);
+    }
 
+    //Create the Change input next
+    {
+        let change_input = document_create_element("input")
+                                .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+        change_input.set_type("tel");
+        change_input.set_id("change_input");
+        change_input.set_value("");
+        change_input.set_placeholder("Amount");
+        transaction_editor_top_row.append_child(&change_input).expect(&error_message);
+    }
 
-    //<input type="date" name="birtdate" placeholder="select Birth date" min= "2005-01-01" max="2010-01-01" >
-    //Next put the header items into the header
-    // for header in headers {
-    //     let header_element = document_create_element("div");
-    //     header_element.set_text_content(Some(&header));
-    //     //Set the header css class value to be like a rust variable
-    //     let header_css_class = header.replace(" ","_").to_ascii_lowercase();
-    //     header_element.class_list().add_1(&header_css_class).expect("Failed to add class to element.");
-    //     body_table_header.append_child(&header_element).expect("Failed to add header element to the header table.");
-    // }
+    //Setup the bottom row
+    let transaction_editor_bottom_row = document_create_element("div");
+    transaction_editor_bottom_row.set_id("transaction_editor_bottom_row");
+    transaction_editor_div.append_child(&transaction_editor_bottom_row).expect(&error_message);
+
+    //Create the memo input next
+    {
+        let memo_textarea = document_create_element("textarea")
+                                .dyn_into::<web_sys::HtmlTextAreaElement>().expect(&error_message);
+        memo_textarea.set_id("memo_textarea");
+        memo_textarea.set_value("");
+        memo_textarea.set_placeholder("Memo");
+        transaction_editor_bottom_row.append_child(&memo_textarea).expect(&error_message);
+    }
+
+    //Create the Enter Transaction input next
+    {
+        let enter_transaction_input = document_create_element("input")
+                                        .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+        enter_transaction_input.set_type("button");
+        enter_transaction_input.set_id("enter_transaction_input");
+        enter_transaction_input.set_value("Enter");
+        transaction_editor_bottom_row.append_child(&enter_transaction_input).expect(&error_message);
+    }
 
     return transaction_editor_div;
 
@@ -608,6 +652,7 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
                             "Category".to_string(),
                             "Decrease".to_string(),
                             "Increase".to_string(),
+                            "Change".to_string(),
                             "Balance".to_string(),
                         );
         let header_element = document_create_body_table_header("div", headers, "transaction");
@@ -694,6 +739,20 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
 
         //Setup the amount, it's negative because we are looking at the other end of the split
         let amount : f64 = (txn.value_num as f64 / txn.value_denom as f64) * -1.0;
+
+        //Setup the change amount, it's negative because we are looking at the other end of the split
+        let txn_change = document_create_element("div");
+        if txn.excluded_account_mnemonic == "USD" {
+            txn_change.set_text_content(
+                Some(&format!("{}",dhu::format_money(amount)))
+            );
+        } else {
+            txn_change.set_text_content(
+                Some(&format!("{}",amount))
+            );
+        }
+        txn_change.class_list().add_1("transaction_change").expect("failed to add class to change");
+        transaction_div.append_child(&txn_change).expect("Failed to append txn_increase to div!");
         
         //Update the balance
         balance_amount = balance_amount + amount;
@@ -763,6 +822,7 @@ pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
 
     //Create accounts_div, and place it in the body
     let accounts_div = document_create_element("div");
+    accounts_div.set_id("accounts_div");
     accounts_div.class_list().add_1("body_table").expect("Failed to add class to element.");
     body_div.append_child(&accounts_div).expect("Failed to append accounts_div to body!");
 
@@ -835,4 +895,8 @@ pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
         account_balance.style().set_property("text-align","end").expect("Failed to change style!");
         account_div.append_child(&account_balance).expect("Failed to append account_balance to account_div!");
     }
+
+    //scroll to the top of the accounts_div
+    accounts_div.set_scroll_top(0);
+
 }

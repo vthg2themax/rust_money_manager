@@ -16,9 +16,9 @@
 .body_table {
     display: flex;
     flex-direction: column;
-    max-height: 80vh;
+    max-height: 67vh;
     overflow: scroll;
-    min-height: 80vh;
+    min-height: 67vh;
 }
 
 .body_row {
@@ -37,6 +37,10 @@
 }
 
 /*Specific Account classes*/
+#accounts_div {
+    min-height: 85vh;
+    max-height: 85vh;
+}
 .account_name {
     width: 25vw;
 }
@@ -45,6 +49,10 @@
 }
 .account_description {
     width: 25vw;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    word-wrap: break-word;
 }
 .account_balance {
     width: 25vw;
@@ -53,23 +61,112 @@
 
 /*Specific Tranasction classes*/
 .transaction_post_date {
-    width: 16vw;
+  width: 23vw;
+  margin-right:1vw;
 }
 .transaction_description {
-    width: 20vw;
+    width: 30vw;
+    margin-right:1vw;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    word-wrap: break-word;
 }
+.transaction_decrease, 
+.transaction_increase,
 .transaction_category {
-    width: 16vw;
+    display: none;
 }
-.transaction_decrease {
-    width: 16vw;
-}
-.transaction_increase {
-    width: 16vw;
+.transaction_change {
+    width: 19vw;
+    margin-right:3vw;
+    text-align:right;
 }
 .transaction_balance {
-    width: 16vw;
+    width: 19vw;
+    text-align:right;
 }
+@media only screen and (min-width: 800px) {
+    .transaction_post_date {
+        width: 16vw;
+        word-wrap: break-word;
+    }
+    .transaction_description {
+        width: 20vw;
+        white-space: unset;
+        overflow: unset;
+        word-wrap: unset;
+    }
+    .transaction_category {
+        width: 16vw;
+        text-overflow: unset;
+        white-space: unset;
+        overflow: unset;
+        word-wrap: unset;
+    }
+    .transaction_decrease {
+        display:unset;
+        width: 16vw;
+    }
+    .transaction_increase {
+        display:unset;
+        width: 16vw;
+    }
+    .transaction_balance {
+        width: 16vw;
+    }  
+}
+
+/*Transaction Editor CSS*/
+#date_input, 
+#time_input, 
+#description_input,
+#category_input,
+#change_input,
+#memo_textarea,
+#eneter_transaction_input {
+    margin-top: 0.5vh;
+    margin-bottom: 0.5vh;
+}
+#transaction_editor_top_row, #transaction_editor_bottom_row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+#transaction_editor_bottom_row {
+    height:8vh;
+}
+#date_input {
+    width: 25vw;
+    margin-right: 1vw;
+}
+#time_input {
+    width: 15vw;
+    margin-right: 1vw;
+}
+#description_input {
+    margin-right: 1vw;
+    width: 43vw;
+}
+#category_input {
+    width: 44vw;
+    margin-right: 1vw;    
+}
+#change_input {
+    width: 43vw;
+}
+#memo_textarea {
+    margin-right: 1vw;
+    width: 74vw;
+    height: 100%;
+    box-sizing: border-box;
+}
+#enter_transaction_input {
+    width:20vw;
+    height: 100%;
+}
+
+
 /*Css For Loading Image*/
 .lds-spinner {
   color: official;
