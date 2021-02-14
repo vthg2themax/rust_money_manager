@@ -67,6 +67,10 @@ features = [
   "HtmlAnchorElement",
   "DomTokenList",
   "HtmlTextAreaElement",
+  "HtmlSelectElement",
+  "HtmlOptionsCollection",
+  "HtmlDataListElement",
+  "HtmlOptionElement",
   ]
 
 [dependencies.js-sys]

@@ -1,11 +1,14 @@
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-//use crate::database_helper_utility as dhu;
+use crate::utility::database_helper_utility as dhu;
+use crate::utility::sql_helper_utility as shu;
+use crate::utility::js_helper_utility as js;
 //use chrono::prelude::*;
 //use time::Duration;
 use std::fmt;
 use serde_repr::*;
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum AccountType {
@@ -86,6 +89,90 @@ pub fn _fields() -> String {
          "parent_guid,code,description,hidden,placeholder "].join("")
          )
 } 
+
+pub fn load_all_accounts_except_root_and_template_from_memory() -> Vec<Account> {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to refresh your accounts view.");
+        }
+        
+        //Prepare a statement
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_all_accounts_except_root_and_template());
+        stmt.getAsObject();
+
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let mut account : Account = row.clone().into_serde().unwrap();
+            let tags : serde_json::Value = serde_json::from_str(                                    
+                                                js::stringify(row.clone()).as_str()                                    
+                                            ).unwrap();
+
+            let balance = format!("{}",
+                            tags["balance"])
+                            .parse::<f64>()
+                            .expect("Balance is not valid!");
+            account.tags.insert("balance".to_string(), balance.to_string());
+
+            let mnemonic : String = dhu::remove_first_and_last_double_quotes_from_string(
+                                        tags["mnemonic"].to_string()
+                                    );
+            account.tags.insert("mnemonic".to_string(), mnemonic.clone());
+
+            accounts.push(account);
+        }
+
+        stmt.free();
+    
+        return accounts;
+    
+    }
+}
+
+pub fn load_accounts_with_balances_from_memory() -> Vec<Account> {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to refresh your accounts view.");
+        }
+        
+        //Prepare a statement
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_accounts_with_balances());
+        stmt.getAsObject();
+
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let mut account : Account = row.clone().into_serde().unwrap();
+            let tags : serde_json::Value = serde_json::from_str(                                    
+                                                js::stringify(row.clone()).as_str()                                    
+                                            ).unwrap();
+
+            let balance = format!("{}",
+                            tags["balance"])
+                            .parse::<f64>()
+                            .expect("Balance is not valid!");
+            account.tags.insert("balance".to_string(), balance.to_string());
+
+            let mnemonic : String = dhu::remove_first_and_last_double_quotes_from_string(
+                                        tags["mnemonic"].to_string()
+                                    );
+            account.tags.insert("mnemonic".to_string(), mnemonic.clone());
+
+            accounts.push(account);
+        }
+
+        stmt.free();
+    
+        return accounts;
+    
+    }
+}
 
 // ///
 // pub fn retrieve_active_accounts(file_path : &str) -> Result<Vec<Account>> {

@@ -23,3 +23,10 @@ pub fn sql_load_transactions_for_account_between_dates() -> String {
     let bytes = include_bytes!("../sql/load_transactions_for_account_between_dates.sql");
     String::from_utf8_lossy(bytes).to_string()
 }
+
+/// sql_load_all_accounts_except_root_and_template loads all the accounts >100 of them except the root
+/// and the template ones.
+pub fn sql_load_all_accounts_except_root_and_template() -> String {
+    let bytes = include_bytes!("../sql/load_all_accounts_except_root_and_template.sql");
+    String::from_utf8_lossy(bytes).to_string()
+}

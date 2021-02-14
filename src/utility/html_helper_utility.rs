@@ -101,7 +101,6 @@ use chrono::prelude::*;
 
 // }
 
-
 pub fn load_accounts_with_balances_from_memory() {
     unsafe {
         if crate::DATABASE.len() == 0 {
@@ -345,10 +344,10 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
             return;
         }
         
-        load_transactions_into_body(transactions_with_splits);
+        load_transactions_into_body(transactions_with_splits.clone());
     
         let footer_div = document_query_selector("#footer");
-        let transaction_editor = document_create_transaction_editor();
+        let transaction_editor = document_create_transaction_editor(accounts[0].guid,transactions_with_splits.clone());
         footer_div.append_child(&transaction_editor).expect("Failed to setup transaction editor!");
 
         //scroll to the bottom of the transaction_div
@@ -466,15 +465,26 @@ pub fn show_loading_message(message : String) {
 
 }
 
-pub fn document_create_transaction_editor() -> web_sys::HtmlElement {
+#[wasm_bindgen()]
+pub fn load_last_transaction_for_account() {
+    let error_message : String = String::from("Failed to load last transaction for account");
+    let currently_loaded_account_guid = document_query_selector("#currently_loaded_account_guid").dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+    let currently_loaded_account_guid = dhu::convert_string_to_guid(currently_loaded_account_guid.value());
+    
+    js::log("We want the last transaction for account ");
+}
+
+use transactions_manager::TransactionWithSplitInformation;
+pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::Uuid, transactions_to_prefill_description_with : Vec<TransactionWithSplitInformation>) -> web_sys::HtmlElement {
     let error_message : String = String::from("was not able to create transaction editor!");
 
-    //Create a header to hold the headings
-    let transaction_editor_div = web_sys::window().expect("no global `window` exists")
-                                    .document().expect("Should have a document on window")
-                                    .create_element("div").expect(&error_message)
-                                    .dyn_into::<web_sys::HtmlElement>()
-                                    .expect(&error_message);
+    let currently_loaded_account_guid = document_create_element("input").dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+    currently_loaded_account_guid.set_type("hidden");
+    currently_loaded_account_guid.set_value(&dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded));
+    currently_loaded_account_guid.set_id("currently_loaded_account_guid");
+
+    let transaction_editor_div = document_create_element("div");
+    transaction_editor_div.append_child(&currently_loaded_account_guid).expect(&error_message);
     
     //Add the class to the transaction editor
     transaction_editor_div.class_list().add_1("transaction_editor_div").expect("Failed to add class to element.");
@@ -484,58 +494,63 @@ pub fn document_create_transaction_editor() -> web_sys::HtmlElement {
     transaction_editor_top_row.set_id("transaction_editor_top_row");
     transaction_editor_div.append_child(&transaction_editor_top_row).expect(&error_message);
 
-    //create the date input
-    {
-        let date_input = document_create_element("input")
-                            .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-        date_input.set_type("date");
-        date_input.set_id("date_input");
-        date_input.set_value(&chrono::Local::now().naive_local().format("%Y-%m-%d").to_string());
-        transaction_editor_top_row.append_child(&date_input).expect(&error_message);
+    let mut transaction_editor_top_row_html = format!("
+    <input type='date' id='date_input' value='{}' />
+    <input type='time' id='time_input' step='1' value='{}' />
+    <input type='text' id='description_input' onblur='money_manager.load_last_transaction_for_account();' placeholder='Description' list='description_datalist' />
+    <datalist id='description_datalist'>
+    ",
+    &chrono::Local::now().naive_local().format("%Y-%m-%d").to_string(),
+    &chrono::Local::now().naive_local().format("%H:%M:%S").to_string()
+    );
+    for txn in transactions_to_prefill_description_with {
+        let option = format!(r#"<option value="{}">"#, dhu::sanitize_string(txn.description));
+        if !transaction_editor_top_row_html.contains(&option) {
+            transaction_editor_top_row_html += &option;
+        }
+    }
+    transaction_editor_top_row_html += "</datalist>";
+    transaction_editor_top_row_html += "
+    <select id='category_input'>";
+
+    //Setup the categories to choose from now
+    let mut accounts = accounts_manager::load_all_accounts_except_root_and_template_from_memory();
+    accounts.sort_by(|a, b|a.name.cmp(&b.name));    
+    for account in accounts {
+        //Don't load the current account we are in
+        if account.guid != account_guid_currently_loaded {
+            let option = format!(r#"<option value="{}">{}</option>"#, 
+                                    account.guid.to_string(),
+                                    dhu::sanitize_string(account.name),
+                                );
+            transaction_editor_top_row_html += &option;
+        }
     }
 
-    //create the time input
-    {
-        let time_input = document_create_element("input")
-                            .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-        time_input.set_type("time");
-        time_input.set_id("time_input");
-        time_input.set_step("1");
-        time_input.set_value(&chrono::Local::now().naive_local().format("%H:%M:00").to_string());
-        transaction_editor_top_row.append_child(&time_input).expect(&error_message);
-    }
+    transaction_editor_top_row_html += "
+    </select>";
+    transaction_editor_top_row.set_inner_html(&transaction_editor_top_row_html);
 
-    //create the description input
-    {
-        let description_input = document_create_element("input")
-                                .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-        description_input.set_type("text");
-        description_input.set_id("description_input");
-        description_input.set_value("");
-        description_input.set_placeholder("Description");
-        transaction_editor_top_row.append_child(&description_input).expect(&error_message);
-    }
-    //Create the Category input next
-    {
-        let category_input = document_create_element("input")
-                                .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-        category_input.set_type("text");
-        category_input.set_id("category_input");
-        category_input.set_value("");
-        category_input.set_placeholder("Category");
-        transaction_editor_top_row.append_child(&category_input).expect(&error_message);
-    }
-
-    //Create the Change input next
+    //Setup the change input next
     {
         let change_input = document_create_element("input")
-                                .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-        change_input.set_type("tel");
+                                    .dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
         change_input.set_id("change_input");
-        change_input.set_value("");
+        change_input.set_type("tel");
         change_input.set_placeholder("Amount");
+
+        //Setup the change_input onfocus event
+        let change_input = change_input.dyn_into::<web_sys::HtmlElement>().expect(&error_message);
+        let change_input_onfocus = Closure::wrap(Box::new(move || {
+            load_last_transaction_for_account();
+        }) as Box<dyn Fn()>);
+
+        //Set the onFocus handler
+        change_input.set_onfocus(Some(change_input_onfocus.as_ref().unchecked_ref()));
+        change_input_onfocus.forget();
+
         transaction_editor_top_row.append_child(&change_input).expect(&error_message);
-    }
+    }    
 
     //Setup the bottom row
     let transaction_editor_bottom_row = document_create_element("div");
@@ -560,6 +575,16 @@ pub fn document_create_transaction_editor() -> web_sys::HtmlElement {
         enter_transaction_input.set_id("enter_transaction_input");
         enter_transaction_input.set_value("Enter");
         transaction_editor_bottom_row.append_child(&enter_transaction_input).expect(&error_message);
+
+        //Setup the enter_transaction handler
+        let enter_transaction_on_click = Closure::wrap(Box::new(move || {
+            js::alert("enter_transaction_on_click");
+            //load_transaction_editor_into_body(edit_link);
+        }) as Box<dyn Fn()>);
+
+        enter_transaction_input.set_onclick(Some(enter_transaction_on_click.as_ref().unchecked_ref()));
+        enter_transaction_on_click.forget();        
+
     }
 
     return transaction_editor_div;

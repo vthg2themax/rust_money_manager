@@ -164,6 +164,13 @@ pub fn remove_first_and_last_double_quotes_from_string(incoming_string : String)
     
 }
 
+///sanitize_string sanitizes the string by removing everything except A-Z and 0-9 spaces,
+/// underscores, parentheses, brackets, and single apostrophe. 
+pub fn sanitize_string(incoming_string : String) -> String {
+    let regex = Regex::new(r#"[^_' A-Za-z0-9\(\)\]\[]\{\}"#).unwrap();
+    String::from(regex.replace_all(&incoming_string, ""))
+}
+
 // ///convert_guid_to_sqlite_parameter converts a guid to an sqlite string if possible, 
 // /// like so: f737a4904dac6736c7d8fe7b765ee354 or NULL
 // pub fn convert_guid_to_sqlite_parameter(incoming_guid : GUID) -> Result<Option<String>> {    
