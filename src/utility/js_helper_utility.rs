@@ -21,7 +21,12 @@ extern "C" {
    
     #[wasm_bindgen(js_namespace = JSON)]
     pub fn stringify(obj: JsValue) -> String;
+    
+    #[wasm_bindgen(js_namespace = ["window", "URL"])]
+    pub fn createObjectURL(obj: js_sys::Uint8Array) -> JsValue;
 
+    #[wasm_bindgen]
+    pub fn btoa(obj: js_sys::Uint8Array) -> String;
 }
 
 #[wasm_bindgen()]
@@ -51,6 +56,11 @@ pub fn add(x: u32, y: u32) -> u32 {
 #[wasm_bindgen]
 pub fn greet() {
     alert("Hello, wasm-game-of-life!");
+}
+
+/// convert_blob_to_base64_string converts a blob of data to a base64 string for ease of use.
+pub fn convert_blob_to_base64_string(incoming_blob : js_sys::Uint8Array) -> String {
+    return String::from("data:application/SQLITE FORMAT 3;base64,") + &btoa(incoming_blob);
 }
 
 pub fn get_default_page_js() -> String {

@@ -20,6 +20,19 @@ extern "C" {
     #[wasm_bindgen(method)]
     pub fn prepare(this: &Database, s: &str) -> Statement;
     
+    #[wasm_bindgen(method)]
+    pub fn export(this: &Database) -> js_sys::Uint8Array;
+
+    #[wasm_bindgen(method)]
+    pub fn run(this: &Database, s: &str) -> Database;
+
+    #[wasm_bindgen(method, js_name = run)]
+    pub fn run_with_parameters(this: &Database, s: &str, p: JsValue) -> Database;
+
+    /// reset a statement, so that it's parameters can be bound to new values
+    /// It also clears all previous bindings, freeing the memory used by bound parameters.
+    #[wasm_bindgen(method)]
+    pub fn reset(this: &Database);
 }
 
 #[wasm_bindgen]
@@ -193,6 +206,12 @@ pub fn convert_date_to_string_format(incoming_date : chrono::NaiveDateTime ) -> 
     
 }
 
+/// null_date is the null value for a date which is currently 
+/// a NaiveDateTime 1/1/00 00:00:00
+pub fn null_date() -> chrono::NaiveDateTime {
+    NaiveDate::from_ymd(0, 1, 1).and_hms(0,0,0)
+}
+
 ///convert_string_to_date_format attempts to convert a string to the sqlite
 /// database datetime format. 
 pub fn convert_string_to_date_format(incoming_date : &mut chrono::NaiveDateTime,
@@ -204,7 +223,7 @@ pub fn convert_string_to_date_format(incoming_date : &mut chrono::NaiveDateTime,
             return true;
         },
         Err(_) => {
-            *incoming_date = NaiveDate::from_ymd(0, 1, 1).and_hms(0,0,0);
+            *incoming_date = null_date();
             return false;
         }
     }    

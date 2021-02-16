@@ -2,7 +2,6 @@
 /// The only reason something should be here is if it outputs HTML to the form, so this could
 /// be from a database call, or whatever, but it should be displayed to the end user.
 /// Every one of these call should set the #footer, and #body to nothing first.
-
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -235,7 +234,7 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
         //Get the balance, and account information for the previous year
         let mut accounts = Vec::new();
         {
-            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_acount_with_balance_for_date_and_guid());
+            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_account_with_balance_for_date_and_guid());
     
             let binding_object = JsValue::from_serde(
                 &vec!(&date_to_use.format("%Y-%m-%d 00:00:00").to_string(), &account_guid)
@@ -465,17 +464,43 @@ pub fn show_loading_message(message : String) {
 
 }
 
+
 #[wasm_bindgen()]
 pub fn load_last_transaction_for_account() {
     let error_message : String = String::from("Failed to load last transaction for account");
     let currently_loaded_account_guid = document_query_selector("#currently_loaded_account_guid").dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-    let currently_loaded_account_guid = dhu::convert_string_to_guid(currently_loaded_account_guid.value());
+    let currently_loaded_account_guid = dhu::convert_string_to_guid(currently_loaded_account_guid.value())
+                                            .expect(&format!("The given account_guid is not valid! '{}'",currently_loaded_account_guid.value()));
     
-    js::log("We want the last transaction for account ");
+    let current_description = document_query_selector("#description_input").dyn_into::<web_sys::HtmlInputElement>().expect(&error_message).value();
+    
+    let transaction = transactions_manager::retrieve_transaction_with_split_information_for_account_guid_and_description(
+                                                                                                        currently_loaded_account_guid, current_description);
+    //If the transaction is just one, you can continue
+    if transaction.len() == 1 {
+        //Setup the change amount
+        let change_input = document_query_selector("#change_input").dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
+        change_input.set_value(&format!("{:2}",
+                                            (((transaction[0].value_num as f64 / transaction[0].value_denom as f64) as f64)*-1.00)
+                                        ) 
+                                );
+        //Set the category part
+        let category_select = document_query_selector("#category_select").dyn_into::<web_sys::HtmlSelectElement>().expect(&error_message);
+        let options : web_sys::HtmlOptionsCollection = category_select.options();
+        for i in 0..(options.length() -1) {
+            let guid = options.item(i).expect(&error_message).dyn_into::<web_sys::HtmlOptionElement>().expect(&error_message).value();
+            let guid = dhu::convert_string_to_guid(guid.clone()).expect(&format!("Failed to convert option value '{}' to guid.", guid.clone()));
+            if guid == transaction[0].account_guid {
+                category_select.set_selected_index(i as i32);
+                break;
+            }
+            
+        }
+    }
+
 }
 
-use transactions_manager::TransactionWithSplitInformation;
-pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::Uuid, transactions_to_prefill_description_with : Vec<TransactionWithSplitInformation>) -> web_sys::HtmlElement {
+pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::Uuid, transactions_to_prefill_description_with : Vec<transactions_manager::TransactionWithSplitInformation>) -> web_sys::HtmlElement {
     let error_message : String = String::from("was not able to create transaction editor!");
 
     let currently_loaded_account_guid = document_create_element("input").dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
@@ -511,7 +536,7 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
     }
     transaction_editor_top_row_html += "</datalist>";
     transaction_editor_top_row_html += "
-    <select id='category_input'>";
+    <select id='category_select'>";
 
     //Setup the categories to choose from now
     let mut accounts = accounts_manager::load_all_accounts_except_root_and_template_from_memory();
@@ -578,8 +603,7 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
 
         //Setup the enter_transaction handler
         let enter_transaction_on_click = Closure::wrap(Box::new(move || {
-            js::alert("enter_transaction_on_click");
-            //load_transaction_editor_into_body(edit_link);
+            enter_transaction_on_click();
         }) as Box<dyn Fn()>);
 
         enter_transaction_input.set_onclick(Some(enter_transaction_on_click.as_ref().unchecked_ref()));
@@ -588,6 +612,152 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
     }
 
     return transaction_editor_div;
+
+}
+
+/// enter_transaction_on_click() handles the enter key being pressed to enter a transaction.
+pub fn enter_transaction_on_click() {
+    
+    let currently_loaded_account_guid = dhu::convert_string_to_guid(
+                                            document_query_selector("#currently_loaded_account_guid")
+                                            .dyn_into::<web_sys::HtmlInputElement>()
+                                            .expect("Failed to get #currently_loaded_account_guid").value()
+                                        ).expect("failed to get account guid.");
+    let currently_loaded_account = accounts_manager::load_account_for_guid(currently_loaded_account_guid);
+    let post_date_date = document_query_selector("#date_input")
+                            .dyn_into::<web_sys::HtmlInputElement>()
+                            .expect("Failed to get post_date.").value();
+    let post_date_time = document_query_selector("#time_input")
+                            .dyn_into::<web_sys::HtmlInputElement>()
+                            .expect("Failed to get post_time.").value();
+
+    let post_date = dhu::convert_string_to_date(
+                    &(post_date_date.replace("-","") + 
+                    &post_date_time.replace("-","").replace(":","")
+                ));
+    let post_date = match post_date {
+        Ok(result) => {
+            result
+        },
+        Err(e) => {
+            js::alert(&e);                    
+            dhu::null_date()
+        },
+    };
+        
+    //Handle a null date
+    if post_date.year() < 1 {
+        js::log(&format!("{}{} doesn't make a valid time.",
+                            post_date_date.replace("-",""),
+                            post_date_time.replace("-","").replace(":",""),
+                        )
+                );
+        return;
+    }
+
+    //handle a bad amount value
+    let change_input = document_query_selector("#change_input")
+                            .dyn_into::<web_sys::HtmlInputElement>().expect("Failed to dyn_into #change_input");
+    
+    match change_input.value().parse::<f64>() {
+        Ok(_result) => {
+            //we're good!
+        },
+        Err(_e) => {
+            js::alert(&format!("The given amount '{}' is not a valid number.", change_input.value()));
+            return;
+        }
+    }
+
+    let amount = change_input.value().parse::<f64>().expect("Amount number is not valid!");
+
+    //Get the commodity for this transaction to determine the units of the denom
+    let commodity = commodities_manager::retrieve_commodity_for_guid(
+                        currently_loaded_account.commodity_guid
+                        .expect("Missing Commodity Guid!")
+                    );
+
+    let value_num = (amount * commodity.fraction as f64) as i64;
+
+    //Get the account_name, and guid from the category select
+    let category_select = document_query_selector("#category_select")
+                            .dyn_into::<web_sys::HtmlSelectElement>()
+                            .expect("Failed to find category select!");
+    let options : web_sys::HtmlOptionsCollection = category_select.options();
+    let mut account_name : String = String::from("");
+    let mut account_guid = uuid::Uuid::nil();
+
+    for i in 0..(options.length() -1) {        
+        if category_select.selected_index() == i as i32 {
+            let option = options.item(i).expect("Failed to find option!")
+                            .dyn_into::<web_sys::HtmlOptionElement>()
+                            .expect("Failed to find option!");
+            account_guid = dhu::convert_string_to_guid(option.value()).expect("Failed to convert category guid!");
+            account_name = option.text();
+            break;
+        }        
+    }
+
+    let txn = transactions_manager::TransactionWithSplitInformation {
+        excluded_account_guid : currently_loaded_account.guid, 
+        excluded_account_name : currently_loaded_account.name, 
+        excluded_account_mnemonic : String::from(""), 
+        guid: uuid::Uuid::new_v4(), //guid is the GUID for this transaction
+        currency_guid: commodity.guid,
+        num : String::from(""),//Num is the invoice.id that this transaction belongs to. 
+        post_date : dhu::convert_date_to_string_format(post_date), //post_date is the date this transaction is posted. (Ex: '20120801040000' is 'Aug 1 2012')
+        enter_date : dhu::convert_date_to_string_format(chrono::Local::now().naive_local()),
+        description : document_query_selector("#description_input")
+                        .dyn_into::<web_sys::HtmlInputElement>()
+                        .expect("Failed to find description input!").value(),
+        value_num : value_num,//value_num is the numerator for the transaction
+        value_denom : commodity.fraction,
+        account_name : account_name,
+        account_guid : account_guid,
+    };
+
+    match transactions_manager::save_transaction(txn) {
+        Ok(_e) => {
+            clear_transaction_editor();
+            save_database();
+        },
+        Err(e) => {
+            js::alert(&e);
+        },
+    }
+}
+
+/// save_database saves the database to a file.
+pub fn save_database() {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            js::alert("Please select a database to refresh your accounts view.");
+            return;
+        }
+        let blob = crate::DATABASE[0].export();
+        let b64 = base64::encode(blob.to_vec());
+
+        let header = document_query_selector("#header");
+        let div = document_create_element("div");
+        div.set_inner_html(
+                &format!("<a download='sql.db' id='sql.db' 
+                            href='data:application/SQLITE db;base64,{}' target='_self'>Hi Mom</a>",
+                            b64
+                        )
+        );
+        
+        header.append_child(&div).expect("Failed to append anchor to header!");
+    }
+
+    //let array = js_sys::Uint8Array::new(&fr_c.result().unwrap());
+    // let len = array.byte_length() as usize;
+    // js::log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
+ 
+
+}
+
+///clear_transaction_editor 
+pub fn clear_transaction_editor() {
 
 }
 

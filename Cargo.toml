@@ -13,6 +13,7 @@ serde_repr = "0.1.6"
 regex = "1.4.3"
 unicode-segmentation = "1.7.1"
 format_num = "0.1.0"
+base64 = "0.13.0"
 
 [dependencies.chrono]
 version = "0.4.19"

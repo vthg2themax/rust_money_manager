@@ -1,9 +1,15 @@
+use serde_repr::*;
+use serde::{Serialize, Deserialize};
+use wasm_bindgen::prelude::*;
 use uuid::Uuid;
+
+use crate::utility::database_helper_utility as dhu;
+use crate::utility::js_helper_utility as js;
+use crate::utility::sql_helper_utility as shu;
 
 //guid,namespace,mnemonic,fullname,cusip,fraction,quote_flag,quote_source,quote_tz
 
-
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Commodity {
     pub guid: Uuid, //guid is the GUID for this record.
     pub namespace: String, //namespace is the namespace of the commodity. (Ex: 'CURRENCY')
@@ -22,6 +28,41 @@ pub fn _fields() -> String {
          "fraction,quote_flag,quote_source,quote_tz"].join("")
          )
 } 
+
+pub fn retrieve_commodity_for_guid(commodity_guid : Uuid) -> Commodity {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to select from you commodities.");
+        }
+        
+        //Prepare a statement
+        let stmt = crate::DATABASE[0].prepare(&shu::sql_load_commodity_for_guid());
+    
+        let binding_object = JsValue::from_serde(
+            &vec!(
+                    &dhu::convert_guid_to_sqlite_string(&commodity_guid),
+                )
+        ).unwrap();
+
+        stmt.bind(binding_object.clone());
+
+        let mut commodities = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let commodity : Commodity = row.clone().into_serde().unwrap();
+
+            commodities.push(commodity);
+        }
+
+        stmt.free();
+    
+        return commodities[0].clone();
+    
+    }
+}
 
 // ///retrieve_all_commodities retrieves all the commodity records.
 // pub fn retrieve_all_commodities(file_path : &str) -> Result<Vec<Commodity>> {

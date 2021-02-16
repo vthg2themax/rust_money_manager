@@ -1,8 +1,12 @@
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
+
 use uuid::Uuid;
-use chrono::prelude::*;
-//use crate::database_helper_utility as dhu;
+// use chrono::prelude::*;
+use crate::utility::database_helper_utility as dhu;
+use crate::utility::js_helper_utility as js;
+use crate::utility::sql_helper_utility as shu;
 //use chrono::prelude::*;
 //use time::Duration;
 use std::fmt;
@@ -99,6 +103,155 @@ pub fn _fields() -> String {
          "parent_guid,code,description,hidden,placeholder "].join("")
          )
 } 
+
+pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,String> {
+    //var db = new sqlContext.Database();
+    //// Run a query without reading the results
+    //db.run("CREATE TABLE test (col1, col2);");
+    //// Insert two rows: (1,111) and (2,222)
+    //db.run("INSERT INTO test VALUES (?,?), (?,?)", [1, 111, 2, 222]);
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            return Err("Please select a database in order to view the account by the given guid.".to_string());
+        }
+
+        {
+            
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &txn.account_name,
+                        &dhu::convert_guid_to_sqlite_string(&txn.currency_guid),
+                        &txn.description,
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid),
+                    )
+            ).unwrap();
+
+            
+            crate::DATABASE[0].run_with_parameters(&sql, binding_object);
+            crate::DATABASE[0].reset();
+            
+            //Delete the Transaction Records, and the associated records first
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid),
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
+            crate::DATABASE[0].reset();
+            
+            //Delete the Split records
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid),
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
+            crate::DATABASE[0].reset();
+
+            
+            //Delete the Slot record(s)
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid),
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
+            crate::DATABASE[0].reset();
+
+            //Insert The Transaction Record
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid),
+                        &dhu::convert_guid_to_sqlite_string(&txn.currency_guid),
+                        &txn.description,
+                        &txn.num,
+                        &txn.post_date,
+                        &txn.enter_date,
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("INSERT INTO Transactions(guid,currency_guid,num,post_date,enter_date,description) 
+                                                    VALUES (?,?,?,?,?,?) ", binding_object);
+            crate::DATABASE[0].reset();
+
+            //Create the Split to subtract from the From Account
+                        cmd.CommandText = "INSERT INTO Splits(guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date," &
+                                "value_num,value_denom,quantity_num,quantity_denom,lot_guid) VALUES (" &
+                                "'" & fromAccount.ConvertGUID_To_String(Guid.NewGuid) & "',@transactionGUID,'" &
+                                fromAccount.ConvertGUID_To_String(fromAccount.AccountGuid) & "','','','n',NULL,'" &
+                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction * -1)) & "','" &
+                                CStr(fromAccountCommodity.Fraction) & "','" &
+                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction * -1)) & "','" &
+                                CStr(fromAccountCommodity.Fraction) & "',NULL)"
+                        cmd.ExecuteNonQuery()
+                        'Create the other Split to add to the To Account
+                        cmd.CommandText = "INSERT INTO Splits(guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date," &
+                                "value_num,value_denom,quantity_num,quantity_denom,lot_guid) VALUES (" &
+                                "'" & toAccount.ConvertGUID_To_String(Guid.NewGuid) & "',@transactionGUID,'" &
+                                toAccount.ConvertGUID_To_String(toAccount.AccountGuid) & "','','','n',NULL,'" &
+                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction)) & "','" &
+                                CStr(fromAccountCommodity.Fraction) & "','" &
+                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction)) & "','" &
+                                CStr(fromAccountCommodity.Fraction) & "',NULL)"
+                        cmd.ExecuteNonQuery()
+                        If Notes.Trim() <> "" Then
+                            'Create a notes slot for this transaction
+                            cmd.CommandText = "INSERT INTO Slots(id,obj_guid,name,slot_type,int64_val,string_val,double_val," &
+                                    "timespec_val,guid_val,numeric_val_num,numeric_val_denom,gdate_val) VALUES (" &
+                                    "((SELECT id FROM Slots ORDER BY id DESC LIMIT 1)+1),@transactionGUID,'" & SlotsManager.SlotName_Notes & "'," &
+                                    SlotsManager.SlotName_Notes_Slot_Type_Value & ",0,@notesValue,0,NULL,NULL,0,1,NULL)"
+                            cmd.Parameters.Add("@notesValue", DbType.String).Value = Notes
+                            cmd.ExecuteNonQuery()
+                        End If
+                        tr.Commit()
+            
+        }
+    }
+    
+    return Ok(true);
+}
+
+pub fn retrieve_transaction_with_split_information_for_account_guid_and_description(account_guid : Uuid, description : String) -> Vec<TransactionWithSplitInformation> {
+ 
+    let mut transaction_with_split = Vec::new();
+
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database in order to continue!");
+        }
+
+        {
+            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_transaction_for_account_guid_and_description());
+    
+            let binding_object = JsValue::from_serde(
+                &vec!(&dhu::convert_guid_to_sqlite_string(&account_guid),
+                        &dhu::convert_guid_to_sqlite_string(&account_guid),
+                        &dhu::convert_guid_to_sqlite_string(&account_guid),
+                        &description,
+                        &dhu::convert_guid_to_sqlite_string(&account_guid),
+                        &dhu::convert_guid_to_sqlite_string(&account_guid),
+                    )
+            ).unwrap();
+    
+            stmt.bind(binding_object.clone());
+    
+            while stmt.step() {
+                let row = stmt.getAsObject();
+                //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+    
+                let txn : TransactionWithSplitInformation = row.clone().into_serde().unwrap();
+                    
+                transaction_with_split.push(txn);
+            }
+
+            //Free the memory for the statement, and the bindings
+            stmt.free();
+            stmt.freemem();
+        }
+
+    }
+
+    return transaction_with_split;
+}
 
 // ///
 // pub fn retrieve_active_accounts(file_path : &str) -> Result<Vec<Account>> {

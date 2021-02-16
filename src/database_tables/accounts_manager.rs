@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 use uuid::Uuid;
 use crate::utility::database_helper_utility as dhu;
@@ -90,6 +91,42 @@ pub fn _fields() -> String {
          )
 } 
 
+/// load_account_for_guid loads an account for the given date.
+pub fn load_account_for_guid(account_guid : Uuid) -> Account {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to refresh your accounts view.");
+        }
+        
+        //Prepare a statement
+        let stmt = crate::DATABASE[0].prepare(&shu::sql_load_account_with_balance_for_date_and_guid());
+    
+        let binding_object = JsValue::from_serde(
+            &vec!(&dhu::convert_date_to_string_format(chrono::Local::now().naive_local()),
+                    &dhu::convert_guid_to_sqlite_string(&account_guid),
+                )
+        ).unwrap();
+
+        stmt.bind(binding_object.clone());
+
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let account : Account = row.clone().into_serde().unwrap();
+
+            accounts.push(account);
+        }
+
+        stmt.free();
+    
+        return accounts[0].clone();
+    
+    }
+}
+
 pub fn load_all_accounts_except_root_and_template_from_memory() -> Vec<Account> {
     unsafe {
         if crate::DATABASE.len() == 0 {
@@ -106,21 +143,7 @@ pub fn load_all_accounts_except_root_and_template_from_memory() -> Vec<Account> 
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let mut account : Account = row.clone().into_serde().unwrap();
-            let tags : serde_json::Value = serde_json::from_str(                                    
-                                                js::stringify(row.clone()).as_str()                                    
-                                            ).unwrap();
-
-            let balance = format!("{}",
-                            tags["balance"])
-                            .parse::<f64>()
-                            .expect("Balance is not valid!");
-            account.tags.insert("balance".to_string(), balance.to_string());
-
-            let mnemonic : String = dhu::remove_first_and_last_double_quotes_from_string(
-                                        tags["mnemonic"].to_string()
-                                    );
-            account.tags.insert("mnemonic".to_string(), mnemonic.clone());
+            let account : Account = row.clone().into_serde().unwrap();
 
             accounts.push(account);
         }
