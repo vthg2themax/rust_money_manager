@@ -29,10 +29,6 @@ extern "C" {
     #[wasm_bindgen(method, js_name = run)]
     pub fn run_with_parameters(this: &Database, s: &str, p: JsValue) -> Database;
 
-    /// reset a statement, so that it's parameters can be bound to new values
-    /// It also clears all previous bindings, freeing the memory used by bound parameters.
-    #[wasm_bindgen(method)]
-    pub fn reset(this: &Database);
 }
 
 #[wasm_bindgen]

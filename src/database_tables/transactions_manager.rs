@@ -117,19 +117,6 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
 
         {
             
-            let binding_object = JsValue::from_serde(
-                &vec!(
-                        &txn.account_name,
-                        &dhu::convert_guid_to_sqlite_string(&txn.currency_guid),
-                        &txn.description,
-                        &dhu::convert_guid_to_sqlite_string(&txn.guid),
-                    )
-            ).unwrap();
-
-            
-            crate::DATABASE[0].run_with_parameters(&sql, binding_object);
-            crate::DATABASE[0].reset();
-            
             //Delete the Transaction Records, and the associated records first
             let binding_object = JsValue::from_serde(
                 &vec!(
@@ -137,7 +124,6 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
                     )
             ).unwrap();
             crate::DATABASE[0].run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
-            crate::DATABASE[0].reset();
             
             //Delete the Split records
             let binding_object = JsValue::from_serde(
@@ -146,8 +132,6 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
                     )
             ).unwrap();
             crate::DATABASE[0].run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
-            crate::DATABASE[0].reset();
-
             
             //Delete the Slot record(s)
             let binding_object = JsValue::from_serde(
@@ -156,53 +140,74 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
                     )
             ).unwrap();
             crate::DATABASE[0].run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
-            crate::DATABASE[0].reset();
 
             //Insert The Transaction Record
             let binding_object = JsValue::from_serde(
                 &vec!(
-                        &dhu::convert_guid_to_sqlite_string(&txn.guid),
-                        &dhu::convert_guid_to_sqlite_string(&txn.currency_guid),
-                        &txn.description,
-                        &txn.num,
-                        &txn.post_date,
-                        &txn.enter_date,
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid), //guid
+                        &dhu::convert_guid_to_sqlite_string(&txn.currency_guid),//currency_guid
+                        &txn.num, //num
+                        &txn.post_date, //post_date
+                        &txn.enter_date, //enter_date
+                        &txn.description, //description
                     )
             ).unwrap();
-            crate::DATABASE[0].run_with_parameters("INSERT INTO Transactions(guid,currency_guid,num,post_date,enter_date,description) 
-                                                    VALUES (?,?,?,?,?,?) ", binding_object);
-            crate::DATABASE[0].reset();
-
+            crate::DATABASE[0].run_with_parameters("
+                INSERT INTO Transactions(
+                                            guid,currency_guid,num,post_date,enter_date,description
+                                        ) VALUES (                                                 
+                                            ?,    ?,           ?,  ?,        ?,         ?) ", binding_object);
+            js::log(&format!("Transaction GUID '{}'",txn.guid));
             //Create the Split to subtract from the From Account
-                        cmd.CommandText = "INSERT INTO Splits(guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date," &
-                                "value_num,value_denom,quantity_num,quantity_denom,lot_guid) VALUES (" &
-                                "'" & fromAccount.ConvertGUID_To_String(Guid.NewGuid) & "',@transactionGUID,'" &
-                                fromAccount.ConvertGUID_To_String(fromAccount.AccountGuid) & "','','','n',NULL,'" &
-                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction * -1)) & "','" &
-                                CStr(fromAccountCommodity.Fraction) & "','" &
-                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction * -1)) & "','" &
-                                CStr(fromAccountCommodity.Fraction) & "',NULL)"
-                        cmd.ExecuteNonQuery()
-                        'Create the other Split to add to the To Account
-                        cmd.CommandText = "INSERT INTO Splits(guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date," &
-                                "value_num,value_denom,quantity_num,quantity_denom,lot_guid) VALUES (" &
-                                "'" & toAccount.ConvertGUID_To_String(Guid.NewGuid) & "',@transactionGUID,'" &
-                                toAccount.ConvertGUID_To_String(toAccount.AccountGuid) & "','','','n',NULL,'" &
-                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction)) & "','" &
-                                CStr(fromAccountCommodity.Fraction) & "','" &
-                                CStr(CLng(TransferAmount * fromAccountCommodity.Fraction)) & "','" &
-                                CStr(fromAccountCommodity.Fraction) & "',NULL)"
-                        cmd.ExecuteNonQuery()
-                        If Notes.Trim() <> "" Then
-                            'Create a notes slot for this transaction
-                            cmd.CommandText = "INSERT INTO Slots(id,obj_guid,name,slot_type,int64_val,string_val,double_val," &
-                                    "timespec_val,guid_val,numeric_val_num,numeric_val_denom,gdate_val) VALUES (" &
-                                    "((SELECT id FROM Slots ORDER BY id DESC LIMIT 1)+1),@transactionGUID,'" & SlotsManager.SlotName_Notes & "'," &
-                                    SlotsManager.SlotName_Notes_Slot_Type_Value & ",0,@notesValue,0,NULL,NULL,0,1,NULL)"
-                            cmd.Parameters.Add("@notesValue", DbType.String).Value = Notes
-                            cmd.ExecuteNonQuery()
-                        End If
-                        tr.Commit()
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()),//guid
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid),//tx_guid
+                        &dhu::convert_guid_to_sqlite_string(&txn.account_guid),//account_guid                        
+                        &(txn.value_num as f64 * -1.0).to_string(),//value_num
+                        &txn.value_denom.to_string(),//value_denom
+                        &(txn.value_num as f64 * -1.0).to_string(),//quantity_num
+                        &txn.value_denom.to_string(),//quantity_denom
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("
+                INSERT INTO Splits(
+                                    guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date,
+                                    value_num,value_denom,quantity_num,quantity_denom,lot_guid
+                                ) VALUES (
+                                    ?,   ?,      ?,           '',  '',    'n',            NULL,
+                                    ?,        ?,          ?,           ?,             NULL)", binding_object);
+                                
+            //Create the other Split to add to the To Account
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()),//guid
+                        &dhu::convert_guid_to_sqlite_string(&txn.guid),//tx_guid
+                        &dhu::convert_guid_to_sqlite_string(&txn.excluded_account_guid),//account_guid                        
+                        &txn.value_num.to_string(),//value_num
+                        &txn.value_denom.to_string(),//value_denom
+                        &txn.value_num.to_string(),//quantity_num
+                        &txn.value_denom.to_string(),//quantity_denom
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("
+                INSERT INTO Splits(
+                                    guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date,
+                                    value_num,value_denom,quantity_num,quantity_denom,lot_guid
+                                ) VALUES (
+                                    ?,   ?,      ?,           '',  '',    'n',            NULL,
+                                    ?,        ?,          ?,           ?,             NULL)", binding_object);
+            
+            // If Notes.Trim() <> "" Then
+            //     'Create a notes slot for this transaction
+            //     cmd.CommandText = "INSERT INTO Slots(id,obj_guid,name,slot_type,int64_val,string_val,double_val," &
+            //             "timespec_val,guid_val,numeric_val_num,numeric_val_denom,gdate_val) VALUES (" &
+            //             "((SELECT id FROM Slots ORDER BY id DESC LIMIT 1)+1),@transactionGUID,'" & SlotsManager.SlotName_Notes & "'," &
+            //             SlotsManager.SlotName_Notes_Slot_Type_Value & ",0,@notesValue,0,NULL,NULL,0,1,NULL)"
+            //     cmd.Parameters.Add("@notesValue", DbType.String).Value = Notes
+            //     cmd.ExecuteNonQuery()
+            // End If
+            // tr.Commit()
             
         }
     }
