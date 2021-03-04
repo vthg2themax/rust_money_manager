@@ -2,6 +2,10 @@ use uuid::Uuid;
 // id,obj_guid,name,slot_type,int64_val,string_val,double_val,timespec_val,guid_val,
 // numeric_val_num,numeric_val_denom,gdate_val 
 
+pub const slot_name_notes : &str = "notes";
+
+pub const slot_name_notes_slot_type_value : i64 = 4;
+
 
 #[derive(Debug)]
 pub struct Slot {

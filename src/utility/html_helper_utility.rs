@@ -100,6 +100,8 @@ use chrono::prelude::*;
 
 // }
 
+/// load_accounts_with_balances_from_memory loads all the accounts with balances from memory.
+/// This includes transactions in the future.
 pub fn load_accounts_with_balances_from_memory() {
     unsafe {
         if crate::DATABASE.len() == 0 {
@@ -210,9 +212,128 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
 }
 
 /// load_transactions_for_account_into_body loads the transactions for the given account element
+/// into the body of the form for display
+pub fn load_transactions_for_account_into_body_from_memory_alternate(account_element : web_sys::HtmlElement) {
+    
+    //First try to get the guid from the dataset, otherwise the value
+    let account_guid = account_element.dataset().get("guid").expect("Expected GUID!");
+
+    js::log(&format!("The next step is to load the transactions for account with guid:{}",account_guid));
+
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            js::alert("Please select a database in order to view the account by the given guid.");
+            return;
+        }
+
+        //Get the date we want to limit results to, which is the b
+        let date_to_use = chrono::NaiveDateTime::new(NaiveDate::from_ymd
+                            (9999,
+                            12,
+                            31), 
+                        NaiveTime::from_hms_milli(23, 59, 59, 999)
+        );
+
+        //Get the balance, and account information for the previous year
+        let mut accounts = Vec::new();
+        {
+            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_account_with_balance_for_guid());
+    
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                    &account_guid)
+            ).unwrap();
+    
+            stmt.bind(binding_object.clone());
+    
+            while stmt.step() {
+                let row = stmt.getAsObject();
+                js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+    
+                let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
+                let tags : serde_json::Value = serde_json::from_str(                                    
+                                                    js::stringify(row.clone()).as_str()                                    
+                                                ).unwrap();
+    
+                let balance = format!("{}",
+                                tags["balance"])
+                                .parse::<f64>()
+                                .expect("Balance is not valid!");
+                account.tags.insert("balance".to_string(), balance.to_string());
+    
+                let mnemonic : String = dhu::remove_first_and_last_double_quotes_from_string(
+                                            tags["mnemonic"].to_string()
+                                        );
+                account.tags.insert("mnemonic".to_string(), mnemonic.clone());
+    
+                accounts.push(account);
+            }
+    
+            //Free the memory for the statement, and the bindings
+            stmt.free();
+            stmt.freemem();
+    
+            //Exit if there were no results returned
+            if accounts.len() != 1 {
+                js::alert(&format!("Cannot continue! There were {} accounts retrieved for guid '{}', as of '{}'.",accounts.len().to_string(),&date_to_use.to_string(),&account_guid));
+                return;
+            }
+        }
+
+        //Next now that we have a single account record, we can continue, and get the transactions loaded for the past year
+        let mut transactions_with_splits = Vec::new();
+        
+        {
+            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_transactions_for_account());
+                
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                    &account_guid,
+                    &account_guid,
+                    &account_guid,
+                    &account_guid,
+                )
+            ).unwrap();
+    
+            stmt.bind(binding_object.clone());
+    
+            while stmt.step() {
+                let row = stmt.getAsObject();
+                //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+    
+                let txn : transactions_manager::TransactionWithSplitInformation = row.clone().into_serde().unwrap();
+                    
+                transactions_with_splits.push(txn);
+            }
+
+            //Free the memory for the statement, and the bindings
+            stmt.free();
+            stmt.freemem();
+        }
+
+        if transactions_with_splits.len() < 1 {
+            js::alert("No transactions were found.");
+            return;
+        }
+        
+        load_transactions_into_body_alternate(transactions_with_splits.clone());
+    
+        let footer_div = document_query_selector("#footer");
+        let transaction_editor = document_create_transaction_editor(accounts[0].guid,transactions_with_splits.clone());
+        footer_div.append_child(&transaction_editor).expect("Failed to setup transaction editor!");
+
+        //scroll to the bottom of the transaction_div
+        let transaction_div = document_query_selector("#transaction_div");
+        transaction_div.set_scroll_top(transaction_div.scroll_height());
+    }
+    
+}
+
+/// load_transactions_for_account_into_body loads the transactions for the given account element
 /// into the body of the form for display.
 pub fn load_transactions_for_account_into_body_from_memory(account_element : web_sys::HtmlElement) {
     
+    //First try to get the guid from the dataset, otherwise the value
     let account_guid = account_element.dataset().get("guid").expect("Expected GUID!");
 
     js::log(&format!("The next step is to load the transactions for account with guid:{}",account_guid));
@@ -292,6 +413,7 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
             value_denom : -1_000_000,
             account_name : "".to_string(),
             account_guid : uuid::Uuid::nil(),
+            memo : "".to_string(),
         };
 
         transactions_with_splits.push(transactions_before_year);
@@ -309,10 +431,10 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
             let from_date = from_date.format("%Y-%m-%d 00:00:00").to_string();
     
             let thru_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd
-                                                            (Local::now().naive_local().date().year(),
-                                                            Local::now().naive_local().date().month(),
-                                                            Local::now().naive_local().date().day()), 
-                                                        NaiveTime::from_hms_milli(23, 0, 0, 000)
+                                                            (9999,
+                                                            12,
+                                                            31), 
+                                                        NaiveTime::from_hms_milli(23, 59, 59, 999)
             );
 
             let thru_date = thru_date.format("%Y-%m-%d 23:59:59").to_string();
@@ -343,7 +465,7 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
             return;
         }
         
-        load_transactions_into_body(transactions_with_splits.clone());
+        load_transactions_into_body_alternate(transactions_with_splits.clone());
     
         let footer_div = document_query_selector("#footer");
         let transaction_editor = document_create_transaction_editor(accounts[0].guid,transactions_with_splits.clone());
@@ -359,22 +481,14 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
 ///wireup_controls wires up the controls for the form.
 pub fn wireup_controls() {
 
-    //Get the elements we need
-    let main_menu_load_file = web_sys::window().expect("should have a window")
-                                .document().expect("should have a document")
-                                .query_selector("#main_menu_load_file")
-                                .expect("should have a main_menu_load_file")
-                                .expect("should have a mani_menu_load_file")
+    //Setup the load file handler
+    let main_menu_load_file = document_query_selector("#main_menu_load_file")
                                 .dyn_into::<web_sys::HtmlElement>()
                                 .unwrap();
     
     let main_menu_load_file_on_click = Closure::wrap(Box::new(move || {
         //Get the input we need
-        let money_manager_file_input = web_sys::window().expect("no global `window` exists")
-                                        .document().expect("Should have a document on window")
-                                        .query_selector("#money_manager_file_input")
-                                        .expect("should have a file input")
-                                        .expect("should have a file input")
+        let money_manager_file_input = document_query_selector("#money_manager_file_input")
                                         .dyn_into::<web_sys::HtmlInputElement>()
                                         .unwrap();
         money_manager_file_input.click();        
@@ -387,11 +501,7 @@ pub fn wireup_controls() {
     //Set the onchange handler for the money_manager_file_input        
     let money_manager_file_input_on_change = Closure::wrap(Box::new(move || {        
         //Get the input we need
-        let money_manager_file_input = web_sys::window().expect("no global `window` exists")
-                                        .document().expect("Should have a document on window")
-                                        .query_selector("#money_manager_file_input")
-                                        .expect("should have a file input")
-                                        .expect("should have a file input")
+        let money_manager_file_input = document_query_selector("#money_manager_file_input")
                                         .dyn_into::<web_sys::HtmlInputElement>()
                                         .unwrap();            
         
@@ -400,7 +510,6 @@ pub fn wireup_controls() {
         load_accounts_with_balances_into_memory(money_manager_file_input, true);
 
     }) as Box<dyn Fn()>);
-
 
     let money_manager_file_input = web_sys::window().expect("should have a window")
                                     .document().expect("should have a document")
@@ -413,18 +522,39 @@ pub fn wireup_controls() {
     money_manager_file_input.set_onchange(Some(money_manager_file_input_on_change.as_ref().unchecked_ref()));
     money_manager_file_input_on_change.forget();
 
-    //Setup the refresh accounts handler
-    //Set the onchange handler for the money_manager_file_input        
+    //Setup the refresh accounts handler 
     let main_menu_refresh_accounts_on_click = Closure::wrap(Box::new(move || {        
         
         load_accounts_with_balances_from_memory();
 
     }) as Box<dyn Fn()>);
     
-    //Set the Accounts handler to show all the accounts
     let main_menu_accounts = document_query_selector("#main_menu_refresh_accounts");     
     main_menu_accounts.set_onclick(Some(main_menu_refresh_accounts_on_click.as_ref().unchecked_ref()));
     main_menu_refresh_accounts_on_click.forget();
+
+    //Setup the save file handler
+    let main_menu_save_file_on_click = Closure::wrap(Box::new(move || {        
+        
+        save_database();
+
+    }) as Box<dyn Fn()>);
+    
+    let main_menu_save_file = document_query_selector("#main_menu_save_file");     
+    main_menu_save_file.set_onclick(Some(main_menu_save_file_on_click.as_ref().unchecked_ref()));
+    main_menu_save_file_on_click.forget();
+
+    //Setup the settings button handler
+    let main_menu_settings_on_click = Closure::wrap(Box::new(move || {        
+        
+        js::alert("Settings!");
+        load_settings_into_body();
+        
+    }) as Box<dyn Fn()>);
+    
+    let main_menu_settings = document_query_selector("#main_menu_settings");     
+    main_menu_settings.set_onclick(Some(main_menu_settings_on_click.as_ref().unchecked_ref()));
+    main_menu_settings_on_click.forget();
 }
 
 /// show_loading_message shows a loading message with the String you choose to display.
@@ -503,13 +633,7 @@ pub fn load_last_transaction_for_account() {
 pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::Uuid, transactions_to_prefill_description_with : Vec<transactions_manager::TransactionWithSplitInformation>) -> web_sys::HtmlElement {
     let error_message : String = String::from("was not able to create transaction editor!");
 
-    let currently_loaded_account_guid = document_create_element("input").dyn_into::<web_sys::HtmlInputElement>().expect(&error_message);
-    currently_loaded_account_guid.set_type("hidden");
-    currently_loaded_account_guid.set_value(&dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded));
-    currently_loaded_account_guid.set_id("currently_loaded_account_guid");
-
     let transaction_editor_div = document_create_element("div");
-    transaction_editor_div.append_child(&currently_loaded_account_guid).expect(&error_message);
     
     //Add the class to the transaction editor
     transaction_editor_div.class_list().add_1("transaction_editor_div").expect("Failed to add class to element.");
@@ -520,13 +644,15 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
     transaction_editor_div.append_child(&transaction_editor_top_row).expect(&error_message);
 
     let mut transaction_editor_top_row_html = format!("
-    <input type='date' id='date_input' value='{}' />
-    <input type='time' id='time_input' step='1' value='{}' />
+    <input type='hidden' id='currently_loaded_account_guid' data-guid='{account_guid}' value='{account_guid}' />
+    <input type='date' id='date_input' value='{date_input}' />
+    <input type='time' id='time_input' step='1' value='{time_input}' />
     <input type='text' id='description_input' onblur='money_manager.load_last_transaction_for_account();' placeholder='Description' list='description_datalist' />
     <datalist id='description_datalist'>
     ",
-    &chrono::Local::now().naive_local().format("%Y-%m-%d").to_string(),
-    &chrono::Local::now().naive_local().format("%H:%M:%S").to_string()
+    account_guid=&dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded),
+    date_input=&chrono::Local::now().naive_local().format("%Y-%m-%d").to_string(),
+    time_input=&chrono::Local::now().naive_local().format("%H:%M:%S").to_string()
     );
     for txn in transactions_to_prefill_description_with {
         let option = format!(r#"<option value="{}">"#, dhu::sanitize_string(txn.description));
@@ -698,6 +824,12 @@ pub fn enter_transaction_on_click() {
         }        
     }
 
+    //Get the memo entered if any
+    let memo = document_query_selector("#memo_textarea")
+                    .dyn_into::<web_sys::HtmlTextAreaElement>()
+                    .expect("Failed to convert memo_textarea!").value();
+    
+
     let txn = transactions_manager::TransactionWithSplitInformation {
         excluded_account_guid : currently_loaded_account.guid, 
         excluded_account_name : currently_loaded_account.name, 
@@ -714,12 +846,19 @@ pub fn enter_transaction_on_click() {
         value_denom : commodity.fraction,
         account_name : account_name,
         account_guid : account_guid,
+        memo : memo,
     };
 
     match transactions_manager::save_transaction(txn) {
         Ok(_e) => {
-            clear_transaction_editor();
-            save_database();
+            //Reload the transactions to see our newly entered one
+            let account_element = document_query_selector("#currently_loaded_account_guid");
+            
+                                    
+            load_transactions_for_account_into_body_from_memory(account_element);
+            
+            //Set focus on description to continue
+            document_query_selector("#description_input").focus().expect("Failed to focus description_input!");
         },
         Err(e) => {
             js::alert(&e);
@@ -758,7 +897,28 @@ pub fn save_database() {
 
 ///clear_transaction_editor 
 pub fn clear_transaction_editor() {
+    
+    //clear the description
+    let description_input = document_query_selector("#description_input")
+                                .dyn_into::<web_sys::HtmlInputElement>()
+                                .expect("Failed to dyn_into #description_input!");
+    description_input.set_value("");
 
+    //clear the change_input
+    let change_input = document_query_selector("#change_input")
+                            .dyn_into::<web_sys::HtmlInputElement>().expect("Failed to dyn_into #change_input");
+    change_input.set_value("");
+
+    //clear the category_select
+    let category_select = document_query_selector("#category_select")
+                            .dyn_into::<web_sys::HtmlSelectElement>()
+                            .expect("Failed to find category select!");
+    category_select.set_selected_index(0);
+
+    //clear the memo
+    let memo = document_query_selector("#memo_textarea")
+                    .dyn_into::<web_sys::HtmlTextAreaElement>()
+                    .expect("Failed to convert memo_textarea!").value();
 }
 
 /// hide_loading_message attempts to hide the loading message.
@@ -832,6 +992,171 @@ pub fn document_create_element(tag : &str) -> web_sys::HtmlElement {
 }
 
 /// load_transaction_into_body loads the transactions for the given transactions into the body.
+pub fn load_transactions_into_body_alternate(transactions_with_splits : Vec<transactions_manager::TransactionWithSplitInformation>) {
+    
+    //Clear out the body, and footer first    
+    let body_div = document_query_selector("#body");
+    body_div.set_inner_html("");
+    let footer_div = document_query_selector("#footer");
+    footer_div.set_inner_html("");
+
+    //Create the transactions header first
+    {
+        let headers = vec!("Post Date".to_string(),
+                            "Description".to_string(),
+                            "Category".to_string(),
+                            "Decrease".to_string(),
+                            "Increase".to_string(),
+                            "Change".to_string(),
+                            "Balance".to_string(),
+                        );
+        let header_element = document_create_body_table_header("div", headers, "transaction");
+        body_div.append_child(&header_element).expect("Failed to append header_element to body_div.");
+    }
+
+    let transactions_div = document_create_element("div");
+    transactions_div.set_id("transaction_div");
+    transactions_div.class_list().add_1("body_table").expect("Failed to add class to element.");
+    body_div.append_child(&transactions_div).expect("Failed to append transactions_div to body!");
+
+    let mut balance_amount : f64 = 0.0;
+
+    for txn in transactions_with_splits {
+        //Setup the query_selector acceptable guid
+        let txn_guid_selector = format!("transaction_{}", &dhu::convert_guid_to_sqlite_string(&txn.guid));
+
+        //Create transaction div
+        let transaction_div = document_create_element("div");
+        transaction_div.class_list().add_1("body_row").expect("Failed to add class to element.");
+        //Put it inside the transactions div
+        transactions_div.append_child(&transaction_div).expect("Failed to append transaction_div to accounts_div!");
+
+        //Setup the transaction link, and place it inside the transactions div
+        let edit_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
+        let result = match dhu::convert_string_to_date(&txn.post_date) {
+            Ok(e) => {
+                e
+            },
+            Err(_ex) => {
+                NaiveDateTime::new(NaiveDate::from_ymd(0,1,1),
+                                    NaiveTime::from_hms(0,0,0)
+                                )
+            }
+        };
+
+        edit_link.set_text_content(Some(&result.format("%m/%d/%Y").to_string()));
+        edit_link.set_href("#");
+        edit_link.set_id(&txn_guid_selector);
+        edit_link.dataset().set("guid", 
+                                &dhu::convert_guid_to_sqlite_string(&txn.guid))
+                                .expect("Failed to set dataset's txn_guid!");
+        edit_link.class_list().add_1("transaction_post_date").expect("Failed to add class to element.");
+        transaction_div.append_child(&edit_link).expect("Failed to append edit_link to div!");
+
+        //Setup the edit_link handler
+        let edit_link_on_click = Closure::wrap(Box::new(move || {
+            let edit_link = document_query_selector(&format!("#{}",txn_guid_selector));
+            //load_transaction_editor_into_body(edit_link);
+        }) as Box<dyn Fn()>);
+
+        edit_link.set_onclick(Some(edit_link_on_click.as_ref().unchecked_ref()));
+        edit_link_on_click.forget();        
+
+        //Setup the transaction description, and place it inside the account div
+        let txn_description = document_create_element("div");
+        txn_description.set_text_content(
+            Some(format!("{}",&txn.description).as_str())
+        );
+        txn_description.class_list().add_1("transaction_description").expect("Failed to add class to element.");
+        transaction_div.append_child(&txn_description).expect("Failed to append txn_description to div!");
+
+        //Setup the transaction category
+        let txn_category = document_create_element("div");
+        txn_category.set_text_content(
+            Some(&format!("{}",&txn.account_name))
+        );
+        txn_category.class_list().add_1("transaction_category").expect("Failed to add class to element.");
+        transaction_div.append_child(&txn_category).expect("Failed to append txn_category to div!");
+        
+        //Setup the Decrease column
+        let txn_decrease = document_create_element("div");
+        txn_decrease.set_text_content(
+            Some(&format!("{}","0.00"))
+        );
+        txn_decrease.class_list().add_1("transaction_decrease").expect("failed to decrease");
+        transaction_div.append_child(&txn_decrease).expect("Failed to append txn_decrease to div!");
+    
+        //Setup the Increase column
+        let txn_increase = document_create_element("div");
+        txn_increase.set_text_content(
+            Some(&format!("{}","0.00"))
+        );
+        txn_increase.class_list().add_1("transaction_increase").expect("failed to increase");
+        transaction_div.append_child(&txn_increase).expect("Failed to append txn_increase to div!");
+
+        //Setup the amount, it's negative because we are looking at the other end of the split
+        let amount : f64 = (txn.value_num as f64 / txn.value_denom as f64) * -1.0;
+
+        //Setup the change amount, it's negative because we are looking at the other end of the split
+        let txn_change = document_create_element("div");
+        if txn.excluded_account_mnemonic == "USD" {
+            txn_change.set_text_content(
+                Some(&format!("{}",dhu::format_money(amount)))
+            );
+        } else {
+            txn_change.set_text_content(
+                Some(&format!("{}",amount))
+            );
+        }
+        txn_change.class_list().add_1("transaction_change").expect("failed to add class to change");
+        transaction_div.append_child(&txn_change).expect("Failed to append txn_increase to div!");
+        
+        //Update the balance
+        balance_amount = balance_amount + amount;
+
+        //Setup the Balance Column
+        let txn_balance = document_create_element("div");
+        if txn.excluded_account_mnemonic == "USD" {
+            txn_balance.set_text_content(
+                Some(&format!("{}",dhu::format_money(balance_amount)))
+            );
+        } else {
+            txn_balance.set_text_content(
+                Some(&format!("{}",balance_amount))
+            );
+        }
+        txn_balance.class_list().add_1("transaction_balance").expect("Failed to add class to element.");
+        transaction_div.append_child(&txn_balance).expect("Failed to append txn_balance to div!");
+
+        //If amount is positive then setup the positive amounts
+        if amount >= 0.0 {
+            if txn.excluded_account_mnemonic == "USD" {
+                txn_increase.set_text_content(
+                    Some(&format!("{}",dhu::format_money(amount)))
+                );
+            } else {
+                txn_increase.set_text_content(
+                    Some(&format!("{}",amount))
+                );
+            }
+        } else {
+            //Otherwise we setup the negative amounts
+            if txn.excluded_account_mnemonic == "USD" {
+                txn_decrease.set_text_content(
+                    Some(&format!("{}",dhu::format_money(amount)))
+                );
+            } else {
+                txn_decrease.set_text_content(
+                    Some(&format!("{}",amount))
+                );
+            }
+        }
+
+        
+    }
+}
+
+/// load_transaction_into_body loads the transactions for the given transactions into the body.
 pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_manager::TransactionWithSplitInformation>) {
     
     //Clear out the body, and footer first    
@@ -877,8 +1202,10 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
             Ok(e) => {
                 e
             },
-            Err(ex) => {
-                panic!(ex);
+            Err(_ex) => {
+                NaiveDateTime::new(NaiveDate::from_ymd(0,1,1),
+                                    NaiveTime::from_hms(0,0,0)
+                                )
             }
         };
 
@@ -1048,7 +1375,7 @@ pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
         let account_link_on_click = Closure::wrap(Box::new(move || {
             show_loading_message("Please wait while your transactions are loaded...".to_string());
             let account_link = document_query_selector(&format!("#{}",&account_guid_selector));
-            load_transactions_for_account_into_body_from_memory(account_link);
+            load_transactions_for_account_into_body_from_memory_alternate(account_link);
         }) as Box<dyn Fn()>);
         
         account_link.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));

@@ -1,3 +1,6 @@
+#Run this command to enable the building of our beloved wasm
+rustup target add wasm32-unknown-unknown
+
 #Setup the project directory
 project_directory=~/Nextcloud/Projects/money_manager
 cd $project_directory

@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::utility::database_helper_utility as dhu;
 use crate::utility::js_helper_utility as js;
 use crate::utility::sql_helper_utility as shu;
+use crate::database_tables::slots_manager;
 //use chrono::prelude::*;
 //use time::Duration;
 use std::fmt;
@@ -93,6 +94,8 @@ pub struct TransactionWithSplitInformation {
     pub value_denom : i64,//value_denom is the denominator for the transaction
     pub account_name : String,//account_name is the account.name for this transaction
     pub account_guid : Uuid,//account_guid is the account.guid for this transaction
+    #[serde(skip)] 
+    pub memo : String, //memo is the memo attached to this transaction
 }
 
 //_Fields: guid,name,account_type,commodity_guid,commodity_scu,non_std_scu,
@@ -133,7 +136,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
             ).unwrap();
             crate::DATABASE[0].run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
             
-            //Delete the Slot record(s)
+            //Delete the Slot record(s) for this transaction
             let binding_object = JsValue::from_serde(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&txn.guid),
@@ -198,16 +201,27 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
                                     ?,   ?,      ?,           '',  '',    'n',            NULL,
                                     ?,        ?,          ?,           ?,             NULL)", binding_object);
             
-            // If Notes.Trim() <> "" Then
-            //     'Create a notes slot for this transaction
-            //     cmd.CommandText = "INSERT INTO Slots(id,obj_guid,name,slot_type,int64_val,string_val,double_val," &
-            //             "timespec_val,guid_val,numeric_val_num,numeric_val_denom,gdate_val) VALUES (" &
-            //             "((SELECT id FROM Slots ORDER BY id DESC LIMIT 1)+1),@transactionGUID,'" & SlotsManager.SlotName_Notes & "'," &
-            //             SlotsManager.SlotName_Notes_Slot_Type_Value & ",0,@notesValue,0,NULL,NULL,0,1,NULL)"
-            //     cmd.Parameters.Add("@notesValue", DbType.String).Value = Notes
-            //     cmd.ExecuteNonQuery()
-            // End If
-            // tr.Commit()
+            if txn.memo.trim() != "" {
+                //Create a notes slot for this transaction
+                let binding_object = JsValue::from_serde(
+                    &vec!(
+                            &dhu::convert_guid_to_sqlite_string(&txn.guid), //obj_guid
+                            &slots_manager::slot_name_notes.to_string(), //name
+                            &slots_manager::slot_name_notes_slot_type_value.to_string(), //slot_type
+                            &txn.memo, //string_val
+                        )
+                ).unwrap();
+                crate::DATABASE[0].run_with_parameters("
+                    INSERT INTO Slots(
+                                        id,obj_guid,name,slot_type,int64_val,string_val,double_val,
+                                        timespec_val,guid_val,numeric_val_num,numeric_val_denom,gdate_val
+                                      ) VALUES (                                                          
+                                        ((SELECT id FROM Slots ORDER BY id DESC LIMIT 1)+1),             
+                                           ?,       ?,   ?,        0,        ?,         0,               
+                                        NULL,        NULL,    0,              1,                NULL
+                                    )",
+                                    binding_object);
+            }            
             
         }
     }

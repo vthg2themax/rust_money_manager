@@ -5,6 +5,8 @@ pub fn sql_load_accounts_with_balances() -> String {
   
 }
 
+/// sql_load_transactions_for_account loads all the transactions for an account.
+/// You will need to pass the account_guid 4 times.
 pub fn sql_load_transactions_for_account() -> String {
     let bytes = include_bytes!("../sql/load_transactions_for_account.sql");
     String::from_utf8_lossy(bytes).to_string()
@@ -16,10 +18,17 @@ pub fn sql_load_commodity_for_guid() -> String {
     String::from_utf8_lossy(bytes).to_string()
 }
 
-/// sql_load_account_with_balanace loads the account with balance based on the date the account
-/// was opened until the given date, for the account with given guid.
+/// sql_load_account_with_balance_for_date_and_guid loads the account with balance based on 
+/// the date the account was opened until the given date, for the account with given guid.
 pub fn sql_load_account_with_balance_for_date_and_guid() -> String {
     let bytes = include_bytes!("../sql/load_account_with_balance_for_date_and_guid.sql");
+    String::from_utf8_lossy(bytes).to_string()
+}
+
+/// sql_load_account_with_balance_for_guid loads the account with balance for the account with
+/// the given guid.
+pub fn sql_load_account_with_balance_for_guid() -> String {
+    let bytes = include_bytes!("../sql/load_account_with_balance_for_guid.sql");
     String::from_utf8_lossy(bytes).to_string()
 }
 
