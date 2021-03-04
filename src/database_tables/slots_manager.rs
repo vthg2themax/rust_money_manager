@@ -1,4 +1,5 @@
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 // id,obj_guid,name,slot_type,int64_val,string_val,double_val,timespec_val,guid_val,
 // numeric_val_num,numeric_val_denom,gdate_val 
 
@@ -7,7 +8,7 @@ pub const slot_name_notes : &str = "notes";
 pub const slot_name_notes_slot_type_value : i64 = 4;
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Slot {
     pub id: i64, //id is the Slot's id, it's an autoincrementing integer. Set to -1 to allow it to do that.
     pub obj_guid: Uuid, //obj_guid is the object guid associated with this record.
@@ -20,7 +21,7 @@ pub struct Slot {
     pub guid_val: String, //guid_val is a null value string that could eventually be used
     pub numeric_val_num: i64, //numeric_val_num is the numeric value number. 0 by default
     pub numeric_val_denom: i64, //numeric_val_denom is the denom 1 by default.
-    pub gdate_val: String, //gdate_val is a null value that could eventuall be used
+    pub gdate_val: String, //gdate_val is a null value that could eventually be used
 }
 
 pub fn _fields() -> String {

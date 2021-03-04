@@ -1,5 +1,11 @@
 #Run this command to enable the building of our beloved wasm
 rustup target add wasm32-unknown-unknown
+#Install SSL to make sure this next process can continue
+sudo apt install libssl-dev
+#Ensure this tool is installed as well
+cargo install wasm-bindgen-cli
+#Ensure this garbage collector is installed
+cargo install wasm-gc
 
 #Setup the project directory
 project_directory=~/Nextcloud/Projects/money_manager

@@ -100,6 +100,49 @@ use chrono::prelude::*;
 
 // }
 
+pub fn load_settings_into_body() {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            js::alert("Please select a database to see your settings.");
+            return;
+        }
+        
+        //Prepare a statement
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_accounts_with_balances());
+        stmt.getAsObject();
+
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
+            let tags : serde_json::Value = serde_json::from_str(                                    
+                                                js::stringify(row.clone()).as_str()                                    
+                                            ).unwrap();
+
+            let balance = format!("{}",
+                            tags["balance"])
+                            .parse::<f64>()
+                            .expect("Balance is not valid!");
+            account.tags.insert("balance".to_string(), balance.to_string());
+
+            let mnemonic : String = dhu::remove_first_and_last_double_quotes_from_string(
+                                        tags["mnemonic"].to_string()
+                                    );
+            account.tags.insert("mnemonic".to_string(), mnemonic.clone());
+
+            accounts.push(account);
+        }
+
+        stmt.free();
+    
+        load_accounts_into_body(accounts);
+    
+    }
+}
+
 /// load_accounts_with_balances_from_memory loads all the accounts with balances from memory.
 /// This includes transactions in the future.
 pub fn load_accounts_with_balances_from_memory() {
@@ -491,7 +534,8 @@ pub fn wireup_controls() {
         let money_manager_file_input = document_query_selector("#money_manager_file_input")
                                         .dyn_into::<web_sys::HtmlInputElement>()
                                         .unwrap();
-        money_manager_file_input.click();        
+        money_manager_file_input.click();
+        js::alert("Hi!");        
     }) as Box<dyn Fn()>);
 
     //Set the onClick handler for the main menu button
