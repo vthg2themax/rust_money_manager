@@ -1,5 +1,16 @@
-#header, #body {
+
+#header {
   margin: 1vh 0vh;
+  display: flex;
+  justify-content: space-between;
+}
+
+#body {
+  margin: 1vh 0vh;
+}
+
+.main_menu_button{
+  width:19vw;
 }
 
 #money_manager_file_input {

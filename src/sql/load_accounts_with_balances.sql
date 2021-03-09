@@ -1,10 +1,10 @@
 SELECT guid,name,account_type,commodity_guid,commodity_scu,non_std_scu,parent_guid,code,description,hidden,placeholder,
-(
+COALESCE((
 	SELECT ROUND(SUM(
 		splits.value_num / CAST(splits.value_denom AS REAL)
 	),8)
 	FROM splits WHERE splits.account_guid = accounts.guid
-) AS balance,
+),0) AS balance,
 (
 	SELECT commodities.mnemonic FROM commodities WHERE commodities.guid=commodity_guid
 ) AS mnemonic

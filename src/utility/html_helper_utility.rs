@@ -100,7 +100,9 @@ use chrono::prelude::*;
 
 // }
 
-pub fn load_settings_into_body() {
+/// load_settings_into_body_from_memory loads the settings from the database into 
+/// slot records, and then loads those into the settings page for the page.
+pub fn load_settings_into_body_from_memory() {
     unsafe {
         if crate::DATABASE.len() == 0 {
             js::alert("Please select a database to see your settings.");
@@ -108,38 +110,149 @@ pub fn load_settings_into_body() {
         }
         
         //Prepare a statement
-        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_accounts_with_balances());
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_settings());
         stmt.getAsObject();
 
-        let mut accounts = Vec::new();
+        let mut slots = Vec::new();
 
         while stmt.step() {
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
-            let tags : serde_json::Value = serde_json::from_str(                                    
-                                                js::stringify(row.clone()).as_str()                                    
-                                            ).unwrap();
-
-            let balance = format!("{}",
-                            tags["balance"])
-                            .parse::<f64>()
-                            .expect("Balance is not valid!");
-            account.tags.insert("balance".to_string(), balance.to_string());
-
-            let mnemonic : String = dhu::remove_first_and_last_double_quotes_from_string(
-                                        tags["mnemonic"].to_string()
-                                    );
-            account.tags.insert("mnemonic".to_string(), mnemonic.clone());
-
-            accounts.push(account);
+            let slot : slots_manager::Slot = row.clone().into_serde().unwrap();
+            slots.push(slot);
         }
 
         stmt.free();
     
-        load_accounts_into_body(accounts);
+        load_settings_into_body(slots);
     
+    }
+}
+
+/// save_setting_for_display_transactions_older_than_one_year saves the setting
+/// for displaying transactions older than one year, by deleting the named slots record by name and 
+/// string_val and then saving a new one with the correct value from the checkebox on the page.
+pub fn save_setting_for_display_transactions_older_than_one_year() {
+    
+    let setting_checkbox = document_query_selector("#settings_display_transactions_older_than_one_year_checkbox")
+                            .dyn_into::<web_sys::HtmlInputElement>()
+                            .unwrap();    
+
+
+    match slots_manager::save_slot_for_name_and_string_val_and_int64_val(
+                        slots_manager::SLOT_NAME_SETTINGS.to_string(),
+                        slots_manager::SLOT_NAME_DISPLAY_TRANSACTIONS_OLDER_THAN_ONE_YEAR.to_string(),
+                        if setting_checkbox.checked() { 1 } else { 0 }
+                    ) {
+
+        Ok(_e) => {
+            js::alert("Successfully saved setting!");
+        },
+        Err(_e) => {
+            js::alert("Failed to save setting!");
+            return;
+        }
+    }
+
+}
+
+/// load_reports_into_body loads the reports into the body of the form
+pub fn load_reports_into_body() {
+    //Clear out the body, and footer first    
+    let body_div = document_query_selector("#body");
+    body_div.set_inner_html("");
+    let footer_div = document_query_selector("#footer");
+    footer_div.set_inner_html("");
+
+    //Create the reports form first
+    let reports_div = document_create_element("div");
+    reports_div.set_id("reports");
+    body_div.append_child(&reports_div).unwrap();
+
+    //Then the Header
+    let reports_header = document_create_element("h3");
+    reports_header.set_id("reports_header");
+    reports_header.set_inner_html("Reports");
+    reports_div.append_child(&reports_header).unwrap();
+
+    //Then the list of reports
+
+    //Setup the last 30 days report
+    let reports_last_30_days_report_button = document_create_element("button");
+    reports_last_30_days_report_button.set_inner_html("Last 30 Days");
+    reports_last_30_days_report_button.set_id("reports_last_30_days_report_button");
+    reports_div.append_child(&reports_last_30_days_report_button);
+
+    //Set the event listener
+    let reports_last_30_days_report_button_on_click = Closure::wrap(Box::new(move || {
+        display_last_30_days_report();
+    }) as Box<dyn Fn()>);
+
+    reports_last_30_days_report_button.set_onclick(
+        Some(reports_last_30_days_report_button_on_click.as_ref().unchecked_ref())
+    );
+    reports_last_30_days_report_button_on_click.forget();
+
+}
+
+
+
+/// load_settings_into_body loads teh settings into the body from the given slots
+pub fn load_settings_into_body(settings_slots : Vec<slots_manager::Slot>) {
+    //Clear out the body, and footer first    
+    let body_div = document_query_selector("#body");
+    body_div.set_inner_html("");
+    let footer_div = document_query_selector("#footer");
+    footer_div.set_inner_html("");
+
+    //Create the settings form first
+    let settings_div = document_create_element("div");
+    settings_div.set_id("settings");
+    body_div.append_child(&settings_div).unwrap();
+
+    //Then the Header
+    let settings_header = document_create_element("h3");
+    settings_header.set_id("settings_header");
+    settings_header.set_inner_html("Settings");
+    settings_div.append_child(&settings_header).unwrap();
+
+    //Then the Display Transactions Older than 1 year Setting
+    let settings_display_transactions_older_than_one_year_label = document_create_element("label");
+    settings_display_transactions_older_than_one_year_label.set_inner_html(
+            "Display Transactions Older Than One Year? "
+    );
+    settings_div.append_child(&settings_display_transactions_older_than_one_year_label).unwrap();
+
+    let settings_display_transactions_older_than_one_year_checkbox = document_create_element("input")
+                                                                .dyn_into::<web_sys::HtmlInputElement>()
+                                                                .unwrap();
+    settings_display_transactions_older_than_one_year_checkbox.set_type("checkbox");
+    settings_display_transactions_older_than_one_year_checkbox.set_id("settings_display_transactions_older_than_one_year_checkbox");
+    settings_display_transactions_older_than_one_year_label.append_child(&settings_display_transactions_older_than_one_year_checkbox).unwrap();
+
+    //Set the event listener
+    let settings_display_transactions_older_than_one_year_checkbox_on_click = Closure::wrap(Box::new(move || {
+        save_setting_for_display_transactions_older_than_one_year();
+    }) as Box<dyn Fn()>);
+
+    settings_display_transactions_older_than_one_year_checkbox.set_onclick(
+        Some(settings_display_transactions_older_than_one_year_checkbox_on_click.as_ref().unchecked_ref()));
+    settings_display_transactions_older_than_one_year_checkbox_on_click.forget();    
+
+    for settings_slot in settings_slots {
+        //Handle the setting for display transactions older than 1 year
+        if settings_slot.string_val == slots_manager::SLOT_NAME_DISPLAY_TRANSACTIONS_OLDER_THAN_ONE_YEAR {
+            if settings_slot.int64_val == 1 {
+                settings_display_transactions_older_than_one_year_checkbox.set_checked(true);
+            } else if settings_slot.int64_val == 0 {
+                settings_display_transactions_older_than_one_year_checkbox.set_checked(false);
+            } else {
+                js::alert(&format!("The settings_slot with name of {} is invalid! Please fix this!",
+                                    slots_manager::SLOT_NAME_DISPLAY_TRANSACTIONS_OLDER_THAN_ONE_YEAR));
+                return;
+            }
+        }
     }
 }
 
@@ -240,7 +353,7 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
             }
             
             crate::DATABASE.push(dhu::Database::new(array.clone()));
-        }
+        }        
 
         if load_accounts_into_body_after_load {
             load_accounts_with_balances_from_memory();
@@ -254,9 +367,9 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
 
 }
 
-/// load_transactions_for_account_into_body loads the transactions for the given account element
-/// into the body of the form for display
-pub fn load_transactions_for_account_into_body_from_memory_alternate(account_element : web_sys::HtmlElement) {
+/// load_transactions_for_account_into_body_for_all_time loads the transactions for the given account 
+/// element from the beginning of time into the body of the form for display
+pub fn load_transactions_for_account_into_body_for_all_time(account_element : web_sys::HtmlElement) {
     
     //First try to get the guid from the dataset, otherwise the value
     let account_guid = account_element.dataset().get("guid").expect("Expected GUID!");
@@ -269,7 +382,7 @@ pub fn load_transactions_for_account_into_body_from_memory_alternate(account_ele
             return;
         }
 
-        //Get the date we want to limit results to, which is the b
+        //Get the date we want to limit results to, which is the the max SQLite Date value
         let date_to_use = chrono::NaiveDateTime::new(NaiveDate::from_ymd
                             (9999,
                             12,
@@ -359,7 +472,7 @@ pub fn load_transactions_for_account_into_body_from_memory_alternate(account_ele
             return;
         }
         
-        load_transactions_into_body_alternate(transactions_with_splits.clone());
+        load_transactions_into_body(transactions_with_splits.clone());
     
         let footer_div = document_query_selector("#footer");
         let transaction_editor = document_create_transaction_editor(accounts[0].guid,transactions_with_splits.clone());
@@ -372,9 +485,9 @@ pub fn load_transactions_for_account_into_body_from_memory_alternate(account_ele
     
 }
 
-/// load_transactions_for_account_into_body loads the transactions for the given account element
-/// into the body of the form for display.
-pub fn load_transactions_for_account_into_body_from_memory(account_element : web_sys::HtmlElement) {
+/// load_transactions_for_account_into_body_for_one_year_from_memory loads the transactions for the 
+/// given account element for the last year into the body of the form for display.
+pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_element : web_sys::HtmlElement) {
     
     //First try to get the guid from the dataset, otherwise the value
     let account_guid = account_element.dataset().get("guid").expect("Expected GUID!");
@@ -508,7 +621,7 @@ pub fn load_transactions_for_account_into_body_from_memory(account_element : web
             return;
         }
         
-        load_transactions_into_body_alternate(transactions_with_splits.clone());
+        load_transactions_into_body(transactions_with_splits.clone());
     
         let footer_div = document_query_selector("#footer");
         let transaction_editor = document_create_transaction_editor(accounts[0].guid,transactions_with_splits.clone());
@@ -535,7 +648,6 @@ pub fn wireup_controls() {
                                         .dyn_into::<web_sys::HtmlInputElement>()
                                         .unwrap();
         money_manager_file_input.click();
-        js::alert("Hi!");        
     }) as Box<dyn Fn()>);
 
     //Set the onClick handler for the main menu button
@@ -566,39 +678,57 @@ pub fn wireup_controls() {
     money_manager_file_input.set_onchange(Some(money_manager_file_input_on_change.as_ref().unchecked_ref()));
     money_manager_file_input_on_change.forget();
 
-    //Setup the refresh accounts handler 
-    let main_menu_refresh_accounts_on_click = Closure::wrap(Box::new(move || {        
-        
-        load_accounts_with_balances_from_memory();
+    {
+        //Setup the refresh accounts handler 
+        let main_menu_refresh_accounts_on_click = Closure::wrap(Box::new(move || {        
+            
+            load_accounts_with_balances_from_memory();
 
-    }) as Box<dyn Fn()>);
+        }) as Box<dyn Fn()>);
+        
+        let main_menu_accounts = document_query_selector("#main_menu_refresh_accounts");     
+        main_menu_accounts.set_onclick(Some(main_menu_refresh_accounts_on_click.as_ref().unchecked_ref()));
+        main_menu_refresh_accounts_on_click.forget();
+    }
+
+    {
+        //Setup the save file handler
+        let main_menu_save_file_on_click = Closure::wrap(Box::new(move || {        
+            
+            save_database();
+
+        }) as Box<dyn Fn()>);
+        
+        let main_menu_save_file = document_query_selector("#main_menu_save_file");     
+        main_menu_save_file.set_onclick(Some(main_menu_save_file_on_click.as_ref().unchecked_ref()));
+        main_menu_save_file_on_click.forget();
+    }
+
+    {
+        //Setup the settings button handler
+        let main_menu_settings_on_click = Closure::wrap(Box::new(move || {        
+            
+            load_settings_into_body_from_memory();
+            
+        }) as Box<dyn Fn()>);
+        
+        let main_menu_settings = document_query_selector("#main_menu_settings");     
+        main_menu_settings.set_onclick(Some(main_menu_settings_on_click.as_ref().unchecked_ref()));
+        main_menu_settings_on_click.forget();
+    }
     
-    let main_menu_accounts = document_query_selector("#main_menu_refresh_accounts");     
-    main_menu_accounts.set_onclick(Some(main_menu_refresh_accounts_on_click.as_ref().unchecked_ref()));
-    main_menu_refresh_accounts_on_click.forget();
-
-    //Setup the save file handler
-    let main_menu_save_file_on_click = Closure::wrap(Box::new(move || {        
+    {
+        //Setup the reports button handler
+        let main_menu_reports_on_click = Closure::wrap(Box::new(move || {        
+            
+            load_reports_into_body_from_memory();
+            
+        }) as Box<dyn Fn()>);
         
-        save_database();
-
-    }) as Box<dyn Fn()>);
-    
-    let main_menu_save_file = document_query_selector("#main_menu_save_file");     
-    main_menu_save_file.set_onclick(Some(main_menu_save_file_on_click.as_ref().unchecked_ref()));
-    main_menu_save_file_on_click.forget();
-
-    //Setup the settings button handler
-    let main_menu_settings_on_click = Closure::wrap(Box::new(move || {        
-        
-        js::alert("Settings!");
-        load_settings_into_body();
-        
-    }) as Box<dyn Fn()>);
-    
-    let main_menu_settings = document_query_selector("#main_menu_settings");     
-    main_menu_settings.set_onclick(Some(main_menu_settings_on_click.as_ref().unchecked_ref()));
-    main_menu_settings_on_click.forget();
+        let main_menu_reports = document_query_selector("#main_menu_reports");     
+        main_menu_reports.set_onclick(Some(main_menu_reports_on_click.as_ref().unchecked_ref()));
+        main_menu_reports_on_click.forget();
+    }
 }
 
 /// show_loading_message shows a loading message with the String you choose to display.
@@ -674,6 +804,35 @@ pub fn load_last_transaction_for_account() {
 
 }
 
+/// dispaly_transactions_older_than_one_year is whether we should display transactions older
+/// than one year.
+pub fn display_transactions_older_than_one_year() -> bool {
+
+    let slots = slots_manager::load_slots_for_name_and_string_val(
+                    slots_manager::SLOT_NAME_SETTINGS.to_string(), 
+                    slots_manager::SLOT_NAME_DISPLAY_TRANSACTIONS_OLDER_THAN_ONE_YEAR.to_string());
+    match slots {
+        Ok(slots) => {
+            
+            //By default it should be false
+            if slots.len() < 1 {
+                return false;
+            }
+            //If this is 1, they want this feature.
+            if slots[0].int64_val == 1 {
+                return true;
+            }
+        },
+        Err(e) => {
+            js::alert(&e);
+        }
+    }
+    
+    return false;
+
+}
+
+/// document_create_transaction_editor creates the transaction editor as a div.
 pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::Uuid, transactions_to_prefill_description_with : Vec<transactions_manager::TransactionWithSplitInformation>) -> web_sys::HtmlElement {
     let error_message : String = String::from("was not able to create transaction editor!");
 
@@ -733,16 +892,6 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
         change_input.set_id("change_input");
         change_input.set_type("tel");
         change_input.set_placeholder("Amount");
-
-        //Setup the change_input onfocus event
-        let change_input = change_input.dyn_into::<web_sys::HtmlElement>().expect(&error_message);
-        let change_input_onfocus = Closure::wrap(Box::new(move || {
-            load_last_transaction_for_account();
-        }) as Box<dyn Fn()>);
-
-        //Set the onFocus handler
-        change_input.set_onfocus(Some(change_input_onfocus.as_ref().unchecked_ref()));
-        change_input_onfocus.forget();
 
         transaction_editor_top_row.append_child(&change_input).expect(&error_message);
     }    
@@ -898,8 +1047,14 @@ pub fn enter_transaction_on_click() {
             //Reload the transactions to see our newly entered one
             let account_element = document_query_selector("#currently_loaded_account_guid");
             
-                                    
-            load_transactions_for_account_into_body_from_memory(account_element);
+            if display_transactions_older_than_one_year() {
+                load_transactions_for_account_into_body_for_all_time(account_element);
+            } else {
+                load_transactions_for_account_into_body_for_one_year_from_memory(account_element);
+            }                        
+            
+            //Clear the transaction editor now
+            clear_transaction_editor();
             
             //Set focus on description to continue
             document_query_selector("#description_input").focus().expect("Failed to focus description_input!");
@@ -910,7 +1065,7 @@ pub fn enter_transaction_on_click() {
     }
 }
 
-/// save_database saves the database to a file.
+/// save_database allows the user to save the database to a file. Doesn't currently work in firefox android.
 pub fn save_database() {
     unsafe {
         if crate::DATABASE.len() == 0 {
@@ -920,16 +1075,25 @@ pub fn save_database() {
         let blob = crate::DATABASE[0].export();
         let b64 = base64::encode(blob.to_vec());
 
-        let header = document_query_selector("#header");
+        let filename = document_query_selector("#money_manager_file_input")
+                                        .dyn_into::<web_sys::HtmlInputElement>()
+                                        .unwrap().files().unwrap().get(0).unwrap().name();
+
+        let body = document_query_selector("#body");
         let div = document_create_element("div");
         div.set_inner_html(
-                &format!("<a download='sql.db' id='sql.db' 
-                            href='data:application/SQLITE db;base64,{}' target='_self'>Hi Mom</a>",
-                            b64
+                &format!("<a download='{filename}' id='MoneyManagerFile' 
+                            href='data:application/octet-stream;base64,{base64_string}' target='_self'>Download</a>",
+                            base64_string = b64,
+                            filename = filename,
                         )
         );
+
+        body.append_child(&div).unwrap();
         
-        header.append_child(&div).expect("Failed to append anchor to header!");
+        document_query_selector("#MoneyManagerFile").click();
+        
+        div.set_inner_html("");
     }
 
     //let array = js_sys::Uint8Array::new(&fr_c.result().unwrap());
@@ -962,7 +1126,9 @@ pub fn clear_transaction_editor() {
     //clear the memo
     let memo = document_query_selector("#memo_textarea")
                     .dyn_into::<web_sys::HtmlTextAreaElement>()
-                    .expect("Failed to convert memo_textarea!").value();
+                    .expect("Failed to convert memo_textarea!");
+
+    memo.set_value("");
 }
 
 /// hide_loading_message attempts to hide the loading message.
@@ -1036,171 +1202,6 @@ pub fn document_create_element(tag : &str) -> web_sys::HtmlElement {
 }
 
 /// load_transaction_into_body loads the transactions for the given transactions into the body.
-pub fn load_transactions_into_body_alternate(transactions_with_splits : Vec<transactions_manager::TransactionWithSplitInformation>) {
-    
-    //Clear out the body, and footer first    
-    let body_div = document_query_selector("#body");
-    body_div.set_inner_html("");
-    let footer_div = document_query_selector("#footer");
-    footer_div.set_inner_html("");
-
-    //Create the transactions header first
-    {
-        let headers = vec!("Post Date".to_string(),
-                            "Description".to_string(),
-                            "Category".to_string(),
-                            "Decrease".to_string(),
-                            "Increase".to_string(),
-                            "Change".to_string(),
-                            "Balance".to_string(),
-                        );
-        let header_element = document_create_body_table_header("div", headers, "transaction");
-        body_div.append_child(&header_element).expect("Failed to append header_element to body_div.");
-    }
-
-    let transactions_div = document_create_element("div");
-    transactions_div.set_id("transaction_div");
-    transactions_div.class_list().add_1("body_table").expect("Failed to add class to element.");
-    body_div.append_child(&transactions_div).expect("Failed to append transactions_div to body!");
-
-    let mut balance_amount : f64 = 0.0;
-
-    for txn in transactions_with_splits {
-        //Setup the query_selector acceptable guid
-        let txn_guid_selector = format!("transaction_{}", &dhu::convert_guid_to_sqlite_string(&txn.guid));
-
-        //Create transaction div
-        let transaction_div = document_create_element("div");
-        transaction_div.class_list().add_1("body_row").expect("Failed to add class to element.");
-        //Put it inside the transactions div
-        transactions_div.append_child(&transaction_div).expect("Failed to append transaction_div to accounts_div!");
-
-        //Setup the transaction link, and place it inside the transactions div
-        let edit_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
-        let result = match dhu::convert_string_to_date(&txn.post_date) {
-            Ok(e) => {
-                e
-            },
-            Err(_ex) => {
-                NaiveDateTime::new(NaiveDate::from_ymd(0,1,1),
-                                    NaiveTime::from_hms(0,0,0)
-                                )
-            }
-        };
-
-        edit_link.set_text_content(Some(&result.format("%m/%d/%Y").to_string()));
-        edit_link.set_href("#");
-        edit_link.set_id(&txn_guid_selector);
-        edit_link.dataset().set("guid", 
-                                &dhu::convert_guid_to_sqlite_string(&txn.guid))
-                                .expect("Failed to set dataset's txn_guid!");
-        edit_link.class_list().add_1("transaction_post_date").expect("Failed to add class to element.");
-        transaction_div.append_child(&edit_link).expect("Failed to append edit_link to div!");
-
-        //Setup the edit_link handler
-        let edit_link_on_click = Closure::wrap(Box::new(move || {
-            let edit_link = document_query_selector(&format!("#{}",txn_guid_selector));
-            //load_transaction_editor_into_body(edit_link);
-        }) as Box<dyn Fn()>);
-
-        edit_link.set_onclick(Some(edit_link_on_click.as_ref().unchecked_ref()));
-        edit_link_on_click.forget();        
-
-        //Setup the transaction description, and place it inside the account div
-        let txn_description = document_create_element("div");
-        txn_description.set_text_content(
-            Some(format!("{}",&txn.description).as_str())
-        );
-        txn_description.class_list().add_1("transaction_description").expect("Failed to add class to element.");
-        transaction_div.append_child(&txn_description).expect("Failed to append txn_description to div!");
-
-        //Setup the transaction category
-        let txn_category = document_create_element("div");
-        txn_category.set_text_content(
-            Some(&format!("{}",&txn.account_name))
-        );
-        txn_category.class_list().add_1("transaction_category").expect("Failed to add class to element.");
-        transaction_div.append_child(&txn_category).expect("Failed to append txn_category to div!");
-        
-        //Setup the Decrease column
-        let txn_decrease = document_create_element("div");
-        txn_decrease.set_text_content(
-            Some(&format!("{}","0.00"))
-        );
-        txn_decrease.class_list().add_1("transaction_decrease").expect("failed to decrease");
-        transaction_div.append_child(&txn_decrease).expect("Failed to append txn_decrease to div!");
-    
-        //Setup the Increase column
-        let txn_increase = document_create_element("div");
-        txn_increase.set_text_content(
-            Some(&format!("{}","0.00"))
-        );
-        txn_increase.class_list().add_1("transaction_increase").expect("failed to increase");
-        transaction_div.append_child(&txn_increase).expect("Failed to append txn_increase to div!");
-
-        //Setup the amount, it's negative because we are looking at the other end of the split
-        let amount : f64 = (txn.value_num as f64 / txn.value_denom as f64) * -1.0;
-
-        //Setup the change amount, it's negative because we are looking at the other end of the split
-        let txn_change = document_create_element("div");
-        if txn.excluded_account_mnemonic == "USD" {
-            txn_change.set_text_content(
-                Some(&format!("{}",dhu::format_money(amount)))
-            );
-        } else {
-            txn_change.set_text_content(
-                Some(&format!("{}",amount))
-            );
-        }
-        txn_change.class_list().add_1("transaction_change").expect("failed to add class to change");
-        transaction_div.append_child(&txn_change).expect("Failed to append txn_increase to div!");
-        
-        //Update the balance
-        balance_amount = balance_amount + amount;
-
-        //Setup the Balance Column
-        let txn_balance = document_create_element("div");
-        if txn.excluded_account_mnemonic == "USD" {
-            txn_balance.set_text_content(
-                Some(&format!("{}",dhu::format_money(balance_amount)))
-            );
-        } else {
-            txn_balance.set_text_content(
-                Some(&format!("{}",balance_amount))
-            );
-        }
-        txn_balance.class_list().add_1("transaction_balance").expect("Failed to add class to element.");
-        transaction_div.append_child(&txn_balance).expect("Failed to append txn_balance to div!");
-
-        //If amount is positive then setup the positive amounts
-        if amount >= 0.0 {
-            if txn.excluded_account_mnemonic == "USD" {
-                txn_increase.set_text_content(
-                    Some(&format!("{}",dhu::format_money(amount)))
-                );
-            } else {
-                txn_increase.set_text_content(
-                    Some(&format!("{}",amount))
-                );
-            }
-        } else {
-            //Otherwise we setup the negative amounts
-            if txn.excluded_account_mnemonic == "USD" {
-                txn_decrease.set_text_content(
-                    Some(&format!("{}",dhu::format_money(amount)))
-                );
-            } else {
-                txn_decrease.set_text_content(
-                    Some(&format!("{}",amount))
-                );
-            }
-        }
-
-        
-    }
-}
-
-/// load_transaction_into_body loads the transactions for the given transactions into the body.
 pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_manager::TransactionWithSplitInformation>) {
     
     //Clear out the body, and footer first    
@@ -1241,7 +1242,7 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
         transactions_div.append_child(&transaction_div).expect("Failed to append transaction_div to accounts_div!");
 
         //Setup the transaction link, and place it inside the transactions div
-        let edit_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
+        let delete_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
         let result = match dhu::convert_string_to_date(&txn.post_date) {
             Ok(e) => {
                 e
@@ -1253,23 +1254,58 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
             }
         };
 
-        edit_link.set_text_content(Some(&result.format("%m/%d/%Y").to_string()));
-        edit_link.set_href("#");
-        edit_link.set_id(&txn_guid_selector);
-        edit_link.dataset().set("guid", 
+        delete_link.set_text_content(Some(&result.format("%m/%d/%Y").to_string()));
+        delete_link.set_href("#");
+        delete_link.set_id(&txn_guid_selector);
+        delete_link.dataset().set("guid", 
                                 &dhu::convert_guid_to_sqlite_string(&txn.guid))
                                 .expect("Failed to set dataset's txn_guid!");
-        edit_link.class_list().add_1("transaction_post_date").expect("Failed to add class to element.");
-        transaction_div.append_child(&edit_link).expect("Failed to append edit_link to div!");
+        delete_link.class_list().add_1("transaction_post_date").expect("Failed to add class to element.");
+        transaction_div.append_child(&delete_link).expect("Failed to append delete_link to div!");
 
-        //Setup the edit_link handler
-        let edit_link_on_click = Closure::wrap(Box::new(move || {
-            let edit_link = document_query_selector(&format!("#{}",txn_guid_selector));
+        //Setup the delete_link handler
+        let delete_link_on_click = Closure::wrap(Box::new(move || {
+            let delete_link = document_query_selector(&format!("#{}",txn_guid_selector));
+            if delete_link.dataset().get("guid").is_none() == true {
+                js::alert("The given guid is not valid!");
+                return;
+            }
+            if dhu::convert_string_to_guid(delete_link.dataset().get("guid").unwrap()).is_ok() == false {
+                js::alert("The given guid is not valid!");
+                return;
+            }
+            let txn_guid = dhu::convert_string_to_guid(delete_link.dataset().get("guid").unwrap()).unwrap();
+
+            if js::confirm("Are you sure you want to delete this transaction?") == true {                
+                match transactions_manager::delete_transaction(txn_guid) {
+                    Ok(_e) => {
+                        js::alert("The transaction was successfully deleted.");
+                        //Reload the transactions to see our newly entered one
+                        let account_element = document_query_selector("#currently_loaded_account_guid");
+                        
+                        if display_transactions_older_than_one_year() {
+                            load_transactions_for_account_into_body_for_all_time(account_element);
+                        } else {
+                            load_transactions_for_account_into_body_for_one_year_from_memory(account_element);
+                        }                        
+                        
+                        //Clear the transaction editor now
+                        clear_transaction_editor();
+                        
+                        //Set focus on description to continue
+                        document_query_selector("#description_input").focus().expect("Failed to focus description_input!");
+
+                    },
+                    Err(e) => {
+                        js::alert(&format!("There was an error deleting the transaction. {}",e));
+                    }
+                }
+            }
             //load_transaction_editor_into_body(edit_link);
         }) as Box<dyn Fn()>);
 
-        edit_link.set_onclick(Some(edit_link_on_click.as_ref().unchecked_ref()));
-        edit_link_on_click.forget();        
+        delete_link.set_onclick(Some(delete_link_on_click.as_ref().unchecked_ref()));
+        delete_link_on_click.forget();        
 
         //Setup the transaction description, and place it inside the account div
         let txn_description = document_create_element("div");
@@ -1419,7 +1455,11 @@ pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
         let account_link_on_click = Closure::wrap(Box::new(move || {
             show_loading_message("Please wait while your transactions are loaded...".to_string());
             let account_link = document_query_selector(&format!("#{}",&account_guid_selector));
-            load_transactions_for_account_into_body_from_memory_alternate(account_link);
+            if display_transactions_older_than_one_year() {
+                load_transactions_for_account_into_body_for_all_time(account_link);
+            } else {
+                load_transactions_for_account_into_body_for_one_year_from_memory(account_link);
+            }
         }) as Box<dyn Fn()>);
         
         account_link.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));

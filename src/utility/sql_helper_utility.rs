@@ -1,3 +1,12 @@
+pub fn sql_load_settings() -> String {
+    let bytes = include_bytes!("../sql/load_settings.sql");
+    String::from_utf8_lossy(bytes).to_string()
+}
+
+pub fn sql_load_slots_for_name_and_string_val() -> String {
+    let bytes = include_bytes!("../sql/load_slots_for_name_and_string_val.sql");
+    String::from_utf8_lossy(bytes).to_string()
+}
 
 pub fn sql_load_accounts_with_balances() -> String {
     let bytes = include_bytes!("../sql/load_accounts_with_balances.sql");

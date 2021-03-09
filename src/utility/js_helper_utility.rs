@@ -14,6 +14,9 @@ extern "C" {
     #[wasm_bindgen]
     pub fn alert(s: &str);
 
+    #[wasm_bindgen]
+    pub fn confirm(s: &str) -> bool;
+
     // Use `js_namespace` here to bind `console.log(..)` instead of just
     // `log(..)`
     #[wasm_bindgen(js_namespace = console)]

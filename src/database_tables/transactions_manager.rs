@@ -107,6 +107,47 @@ pub fn _fields() -> String {
          )
 } 
 
+/// delete_transaction deletes a transaction for the given transaction guid, along with the splits
+/// associated with it.
+pub fn delete_transaction(transaction_guid : Uuid) -> Result<bool,String> {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            return Err("Please select a database in order to view the account by the given guid.".to_string());
+        }
+
+        {
+            
+            //Delete the Transaction Records, and the associated records first
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&transaction_guid),
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
+            
+            //Delete the Split records
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&transaction_guid),
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
+            
+            //Delete the Slot record(s) for this transaction
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&transaction_guid),
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
+
+        }
+    }
+    
+    return Ok(true);
+}
+
+/// save_transaction saves a transaction, by first deleting the original transaction. 
 pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,String> {
     //var db = new sqlContext.Database();
     //// Run a query without reading the results
@@ -206,8 +247,8 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
                 let binding_object = JsValue::from_serde(
                     &vec!(
                             &dhu::convert_guid_to_sqlite_string(&txn.guid), //obj_guid
-                            &slots_manager::slot_name_notes.to_string(), //name
-                            &slots_manager::slot_name_notes_slot_type_value.to_string(), //slot_type
+                            &slots_manager::SLOT_NAME_NOTES.to_string(), //name
+                            &slots_manager::SLOT_NAME_NOTES_SLOT_TYPE_VALUE.to_string(), //slot_type
                             &txn.memo, //string_val
                         )
                 ).unwrap();
