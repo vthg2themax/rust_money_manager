@@ -280,7 +280,7 @@ pub fn retrieve_transaction_with_split_information_for_account_guid_and_descript
         }
 
         {
-            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_transaction_for_account_guid_and_description());
+            let stmt = crate::DATABASE[0].prepare(&shu::load_transaction_for_account_guid_and_description());
     
             let binding_object = JsValue::from_serde(
                 &vec!(&dhu::convert_guid_to_sqlite_string(&account_guid),

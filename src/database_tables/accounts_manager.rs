@@ -99,7 +99,7 @@ pub fn load_account_for_guid(account_guid : Uuid) -> Account {
         }
         
         //Prepare a statement
-        let stmt = crate::DATABASE[0].prepare(&shu::sql_load_account_with_balance_for_date_and_guid());
+        let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_date_and_guid());
     
         let binding_object = JsValue::from_serde(
             &vec!(&dhu::convert_date_to_string_format(chrono::Local::now().naive_local()),
@@ -134,7 +134,7 @@ pub fn load_all_accounts_except_root_and_template_from_memory() -> Vec<Account> 
         }
         
         //Prepare a statement
-        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_all_accounts_except_root_and_template());
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::load_all_accounts_except_root_and_template());
         stmt.getAsObject();
 
         let mut accounts = Vec::new();
@@ -162,7 +162,7 @@ pub fn load_accounts_with_balances_from_memory() -> Vec<Account> {
         }
         
         //Prepare a statement
-        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_accounts_with_balances());
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::load_accounts_with_balances());
         stmt.getAsObject();
 
         let mut accounts = Vec::new();

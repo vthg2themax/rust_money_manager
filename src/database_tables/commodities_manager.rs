@@ -36,7 +36,7 @@ pub fn retrieve_commodity_for_guid(commodity_guid : Uuid) -> Commodity {
         }
         
         //Prepare a statement
-        let stmt = crate::DATABASE[0].prepare(&shu::sql_load_commodity_for_guid());
+        let stmt = crate::DATABASE[0].prepare(&shu::load_commodity_for_guid());
     
         let binding_object = JsValue::from_serde(
             &vec!(

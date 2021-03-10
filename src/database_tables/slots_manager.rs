@@ -112,7 +112,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
         }
 
         //Prepare a statement
-        let stmt = crate::DATABASE[0].prepare(&shu::sql_load_slots_for_name_and_string_val());
+        let stmt = crate::DATABASE[0].prepare(&shu::load_slots_for_name_and_string_val());
 
         let binding_object = JsValue::from_serde(
             &vec!(

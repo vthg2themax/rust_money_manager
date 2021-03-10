@@ -2,6 +2,8 @@
 /// The only reason something should be here is if it outputs HTML to the form, so this could
 /// be from a database call, or whatever, but it should be displayed to the end user.
 /// Every one of these call should set the #footer, and #body to nothing first.
+use std::collections::HashMap;
+
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -11,6 +13,7 @@ use crate::utility::database_helper_utility as dhu;
 use crate::utility::sql_helper_utility as shu;
 
 use chrono::prelude::*;
+use chrono::Duration;
 
 // use crate::{
 //     accounts_manager, books_manager, commodities_manager, database_helper_utility, 
@@ -110,7 +113,7 @@ pub fn load_settings_into_body_from_memory() {
         }
         
         //Prepare a statement
-        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_settings());
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::load_settings());
         stmt.getAsObject();
 
         let mut slots = Vec::new();
@@ -182,7 +185,7 @@ pub fn load_reports_into_body() {
     let reports_last_30_days_report_button = document_create_element("button");
     reports_last_30_days_report_button.set_inner_html("Last 30 Days");
     reports_last_30_days_report_button.set_id("reports_last_30_days_report_button");
-    reports_div.append_child(&reports_last_30_days_report_button);
+    reports_div.append_child(&reports_last_30_days_report_button).unwrap();
 
     //Set the event listener
     let reports_last_30_days_report_button_on_click = Closure::wrap(Box::new(move || {
@@ -196,7 +199,90 @@ pub fn load_reports_into_body() {
 
 }
 
+/// display_last_30_days_report displays the last 30 days worth of data in a nice
+/// format.
+pub fn display_last_30_days_report() {
+    //clear out the body, and footer first
+    let body_div = document_query_selector("#body");
+    body_div.set_inner_html("");
+    let footer_div = document_query_selector("#footer");
+    footer_div.set_inner_html("");
 
+    //Get the date we want to limit results to start at 30 days so far
+    let from_date = chrono::NaiveDateTime::new(
+        Local::now().naive_local().date() + Duration::days(-30),
+        NaiveTime::from_hms_milli(0, 0, 0, 000)
+    );
+
+    let thru_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd
+        (Local::now().naive_local().date().year(),
+        Local::now().naive_local().date().month(),
+        Local::now().naive_local().date().day()), 
+            NaiveTime::from_hms_milli(0, 0, 0, 000)
+    );
+
+    let mut report_splits = splits_manager::retrieve_splits_for_dates_report(from_date, 
+                                                                        thru_date, 
+                                                                        String::from("EXPENSE"));
+                                                                        
+
+    let mut final_html = String::from("");
+
+    //Get the categories
+    let mut categories = Vec::<String>::new();    
+    
+    for split in &report_splits {
+        let account_name = &split.account_name;
+        if !categories.contains(&account_name) {
+            categories.push(split.account_name.clone());
+        }
+    }
+
+    //sort the categories
+    categories.sort();
+
+    //Next create a hash map with the balance values
+    let mut categories_and_balances = HashMap::<String, f64>::new();
+    for category in &categories {
+        let mut current_balance = 0.00;
+        //Now lets get those balances
+        for split in &report_splits {
+            let split_category = &split.account_name;
+            let split_amount : f64 = split.quantity_num as f64 / split.quantity_denom as f64;
+            if split_category == category {
+                current_balance += split_amount;
+            }
+        }
+        
+        categories_and_balances.insert(category.to_string(), current_balance);
+    }
+    
+
+    final_html += "Categories";
+    final_html += "<ul>";
+    let mut sorted: Vec<_> = categories_and_balances.iter().collect();
+    sorted.sort_by_key(|a| a.0);
+    
+    for category_and_balance in sorted {
+        
+        final_html += &format!("<li>{}:{}</li>",
+                                category_and_balance.0,
+                                dhu::format_money(*category_and_balance.1));
+
+    }
+
+    final_html += "</ul>";
+    final_html += "<ul>";
+
+    for split in &report_splits {
+        final_html += &format!("<li>{}:{}</li>",split.account_name,split.quantity_num/split.quantity_denom);
+
+    }
+
+    final_html += "</ul>";
+
+    body_div.set_inner_html(&final_html);
+}
 
 /// load_settings_into_body loads teh settings into the body from the given slots
 pub fn load_settings_into_body(settings_slots : Vec<slots_manager::Slot>) {
@@ -266,7 +352,7 @@ pub fn load_accounts_with_balances_from_memory() {
         }
         
         //Prepare a statement
-        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::sql_load_accounts_with_balances());
+        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::load_accounts_with_balances());
         stmt.getAsObject();
 
         let mut accounts = Vec::new();
@@ -338,14 +424,14 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
         js::log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
         
         //Check for a valid database now that we have the bytes
-        match dhu::valid_database(array.clone()) {
-            Ok(()) => {},
-            Err(error_message) => {
-                js::alert(&error_message);
-                hide_loading_message();
-                return;
-            }
-        }        
+        // match dhu::valid_database(array.clone()) {
+        //     Ok(()) => {},
+        //     Err(error_message) => {
+        //         js::alert(&error_message);
+        //         hide_loading_message();
+        //         return;
+        //     }
+        // }
 
         unsafe {
             if crate::DATABASE.len() > 0 {
@@ -355,8 +441,9 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
             crate::DATABASE.push(dhu::Database::new(array.clone()));
         }        
 
+        hide_loading_message();
         if load_accounts_into_body_after_load {
-            load_accounts_with_balances_from_memory();
+            //load_accounts_with_balances_from_memory();
         }
         
     }) as Box<dyn Fn(web_sys::ProgressEvent)>);
@@ -393,7 +480,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
         //Get the balance, and account information for the previous year
         let mut accounts = Vec::new();
         {
-            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_account_with_balance_for_guid());
+            let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_guid());
     
             let binding_object = JsValue::from_serde(
                 &vec!(
@@ -440,7 +527,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
         let mut transactions_with_splits = Vec::new();
         
         {
-            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_transactions_for_account());
+            let stmt = crate::DATABASE[0].prepare(&shu::load_transactions_for_account());
                 
             let binding_object = JsValue::from_serde(
                 &vec!(
@@ -511,7 +598,7 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
         //Get the balance, and account information for the previous year
         let mut accounts = Vec::new();
         {
-            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_account_with_balance_for_date_and_guid());
+            let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_date_and_guid());
     
             let binding_object = JsValue::from_serde(
                 &vec!(&date_to_use.format("%Y-%m-%d 00:00:00").to_string(), &account_guid)
@@ -575,7 +662,7 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
         transactions_with_splits.push(transactions_before_year);
 
         {
-            let stmt = crate::DATABASE[0].prepare(&shu::sql_load_transactions_for_account_between_dates());
+            let stmt = crate::DATABASE[0].prepare(&shu::load_transactions_for_account_between_dates());
     
             let from_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd
                                                             (Local::now().naive_local().date().year()-1,
@@ -721,7 +808,7 @@ pub fn wireup_controls() {
         //Setup the reports button handler
         let main_menu_reports_on_click = Closure::wrap(Box::new(move || {        
             
-            load_reports_into_body_from_memory();
+            load_reports_into_body();
             
         }) as Box<dyn Fn()>);
         
@@ -1100,7 +1187,6 @@ pub fn save_database() {
     // let len = array.byte_length() as usize;
     // js::log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
  
-
 }
 
 ///clear_transaction_editor 
