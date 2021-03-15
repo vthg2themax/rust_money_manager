@@ -1152,6 +1152,18 @@ pub fn enter_transaction_on_click() {
     }
 }
 
+#[wasm_bindgen]
+pub fn get_database_array() -> js_sys::Uint8Array {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to refresh your accounts view.");
+        }
+        let blob = crate::DATABASE[0].export();
+        let b64 = base64::encode(blob.to_vec());
+        return blob;
+    }
+}
+
 /// save_database allows the user to save the database to a file. Doesn't currently work in firefox android.
 pub fn save_database() {
     unsafe {

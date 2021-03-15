@@ -1,7 +1,19 @@
 //app.js is a holder for all the javascript functions for this app.
 // only use javascript functions where it would not make sense to use
 // webassembly functions, such as interacting with other libraries such as sql.js.
-
+function downloadme() {
+    var blob = new Blob(money_manager.get_database_array());
+		var a = document.createElement("a");
+		document.body.appendChild(a);
+		a.href = window.URL.createObjectURL(blob);
+		a.download = "sql.db";
+		a.onclick = function () {
+			setTimeout(function () {
+				window.URL.revokeObjectURL(a.href);
+			}, 1500);
+		};
+		a.click();
+}
 ///load_accounts_from_file loads the accounts for the given file_input type
 // function load_accounts_from_file(file_input) {
 //   var r = new FileReader();
