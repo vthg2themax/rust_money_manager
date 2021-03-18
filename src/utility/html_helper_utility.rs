@@ -934,15 +934,16 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
     transaction_editor_div.append_child(&transaction_editor_top_row).expect(&error_message);
 
     let mut transaction_editor_top_row_html = format!("
-    <input type='hidden' id='currently_loaded_account_guid' data-guid='{account_guid}' value='{account_guid}' />
-    <input type='date' id='date_input' value='{date_input}' />
-    <input type='time' id='time_input' step='1' value='{time_input}' />
-    <input type='text' id='description_input' onblur='money_manager.load_last_transaction_for_account();' placeholder='Description' list='description_datalist' />
-    <datalist id='description_datalist'>
-    ",
-    account_guid=&dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded),
-    date_input=&chrono::Local::now().naive_local().format("%Y-%m-%d").to_string(),
-    time_input=&chrono::Local::now().naive_local().format("%H:%M:%S").to_string()
+        <input type='hidden' id='currently_loaded_account_guid' data-guid='{account_guid}' value='{account_guid}' />
+        <input type='date' id='date_input' value='{date_input}' />
+        <input type='time' id='time_input' step='1' value='{time_input}' />
+        <input type='text' id='description_input' onblur='money_manager.load_last_transaction_for_account();' 
+            placeholder='Description' list='description_datalist' />
+        <datalist id='description_datalist'>
+        ",
+        account_guid=&dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded),
+        date_input=&chrono::Local::now().naive_local().format("%Y-%m-%d").to_string(),
+        time_input=&chrono::Local::now().naive_local().format("%H:%M:%S").to_string()
     );
     for txn in transactions_to_prefill_description_with {
         let option = format!(r#"<option value="{}">"#, dhu::sanitize_string(txn.description));
