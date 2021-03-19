@@ -15,6 +15,8 @@ use crate::utility::sql_helper_utility as shu;
 use chrono::prelude::*;
 use chrono::Duration;
 
+use rand::prelude::*;
+
 // use crate::{
 //     accounts_manager, books_manager, commodities_manager, database_helper_utility, 
 //     html_helper_utility, versions_manager, lots_manager, slots_manager
@@ -221,7 +223,7 @@ pub fn display_last_30_days_report() {
             NaiveTime::from_hms_milli(0, 0, 0, 000)
     );
 
-    let mut report_splits = splits_manager::retrieve_splits_for_dates_report(from_date, 
+    let report_splits = splits_manager::retrieve_splits_for_dates_report(from_date, 
                                                                         thru_date, 
                                                                         String::from("EXPENSE"));
                                                                         
@@ -257,13 +259,14 @@ pub fn display_last_30_days_report() {
         categories_and_balances.insert(category.to_string(), current_balance);
     }
     
-
+    final_html += "<div style='display:flex;'>";
+    final_html += "<div>";
     final_html += "Categories";
     final_html += "<ul>";
     let mut sorted: Vec<_> = categories_and_balances.iter().collect();
     sorted.sort_by_key(|a| a.0);
     
-    for category_and_balance in sorted {
+    for category_and_balance in sorted.clone() {
         
         final_html += &format!("<li>{}:{}</li>",
                                 category_and_balance.0,
@@ -272,11 +275,71 @@ pub fn display_last_30_days_report() {
     }
 
     final_html += "</ul>";
+    let sum : f64 = categories_and_balances.iter().map(|balance|balance.1).sum();
+    final_html += &format!("Total: {}", dhu::format_money(sum));
+
+    let labels : Vec<String> = sorted.clone().iter()
+                    .map(
+                        |category|format!("'{}'",&category.0)
+                    )
+                    .collect::<Vec<String>>();
+
+    let data : Vec<String> = sorted.clone().iter()
+                    .map(
+                        |balance|format!("{:.2}",&balance.1)
+                    )
+                    .collect::<Vec<String>>();
+    
+    let mut rng = thread_rng();
+    let colors: Vec<String> = sorted.clone().iter()
+                    .map(
+                        |_x|
+                        format!("'rgb({},{},{})'",rng.gen_range(0..=255),rng.gen_range(0..=255),rng.gen_range(0..=255))
+                    )
+                    .collect::<Vec<String>>();
+
+    final_html += "</div>";
+    final_html += "<div>";
+    final_html += "<canvas id='categories_chart' width='400' height='400'></canvas>";
+    final_html += r#"<img style="display:none;" src="/" onerror="
+        var ctx = document.querySelector('#categories_chart');
+        var chart = new Chart(ctx, {
+            // The type of chart we want to create
+            type: 'pie',
+        
+            // The data for our dataset
+            data:{
+                'labels':["#;
+    final_html +=             &labels.join(",");
+    final_html +=                                r#"],
+                'datasets':[{
+                        'label':'My First Dataset',
+                        'data':["#;
+    final_html +=                  &data.join(",");
+    final_html +=                                r#"],
+                        'backgroundColor':["#;
+    final_html +=                              &colors.join(",");                        
+    final_html +=                                                 r#"]
+                }]
+            },
+        
+            // Configuration options go here
+            options: {}
+        });
+    "#;
+
+
+
+    final_html+= r#"" />"#;
+    final_html += "</div>";
+    final_html += "</div>";
+
+    final_html += "Transactions List";
     final_html += "<ul>";
-
     for split in &report_splits {
-        final_html += &format!("<li>{}:{}</li>",split.account_name,split.quantity_num/split.quantity_denom);
-
+        let split_amount : f64 = split.quantity_num as f64 / split.quantity_denom as f64;
+        let split_amount = dhu::format_money(split_amount);
+        final_html += &format!("<li>{}:{}</li>",split.account_name,split_amount);
     }
 
     final_html += "</ul>";
@@ -1153,14 +1216,16 @@ pub fn enter_transaction_on_click() {
     }
 }
 
+/// get_database_array gets you a Uint8Array of the database. Crashes all major browsers.
+/// Currently used to pass data between the web assembly, and the javascript caller.
+#[allow(dead_code)]
 #[wasm_bindgen]
 pub fn get_database_array() -> js_sys::Uint8Array {
     unsafe {
         if crate::DATABASE.len() == 0 {
             panic!("Please select a database to refresh your accounts view.");
         }
-        let blob = crate::DATABASE[0].export();
-        let b64 = base64::encode(blob.to_vec());
+        let blob = crate::DATABASE[0].export();        
         return blob;
     }
 }
