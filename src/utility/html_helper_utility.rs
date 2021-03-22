@@ -605,7 +605,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
     
             while stmt.step() {
                 let row = stmt.getAsObject();
-                //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+                js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
                 let txn : transactions_manager::TransactionWithSplitInformation = row.clone().into_serde().unwrap();
                     
@@ -754,7 +754,7 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
     
             while stmt.step() {
                 let row = stmt.getAsObject();
-                //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+                js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
                 let txn : transactions_manager::TransactionWithSplitInformation = row.clone().into_serde().unwrap();
                     
@@ -1405,7 +1405,7 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
         //Put it inside the transactions div
         transactions_div.append_child(&transaction_div).expect("Failed to append transaction_div to accounts_div!");
 
-        //Setup the transaction link, and place it inside the transactions div
+        //Setup the transaction delete link, and place it inside the transactions div
         let delete_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
         let result = match dhu::convert_string_to_date(&txn.post_date) {
             Ok(e) => {
@@ -1471,13 +1471,27 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
         delete_link.set_onclick(Some(delete_link_on_click.as_ref().unchecked_ref()));
         delete_link_on_click.forget();        
 
-        //Setup the transaction description, and place it inside the account div
-        let txn_description = document_create_element("div");
+        //Setup the transaction description, and place it inside the transaction div
+        let txn_description = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
         txn_description.set_text_content(
             Some(format!("{}",&txn.description).as_str())
         );
         txn_description.class_list().add_1("transaction_description").expect("Failed to add class to element.");
         transaction_div.append_child(&txn_description).expect("Failed to append txn_description to div!");
+        
+        let txn_memo : String = String::from(&txn.memo.clone());
+        if txn_memo != "" {
+            //Setup the transaction memo, and place it as a hyperlink for the description
+            txn_description.set_href("#");
+            let txn_description_on_click = Closure::wrap(Box::new(move || {
+                let memo = dhu::sanitize_string(txn_memo.clone());
+                js::alert(&memo);
+    
+            }) as Box<dyn Fn()>);
+    
+            txn_description.set_onclick(Some(txn_description_on_click.as_ref().unchecked_ref()));
+            txn_description_on_click.forget();        
+        }
 
         //Setup the transaction category
         let txn_category = document_create_element("div");

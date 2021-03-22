@@ -94,7 +94,6 @@ pub struct TransactionWithSplitInformation {
     pub value_denom : i64,//value_denom is the denominator for the transaction
     pub account_name : String,//account_name is the account.name for this transaction
     pub account_guid : Uuid,//account_guid is the account.guid for this transaction
-    #[serde(skip)] 
     pub memo : String, //memo is the memo attached to this transaction
 }
 

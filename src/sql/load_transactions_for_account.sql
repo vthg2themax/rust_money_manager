@@ -12,7 +12,9 @@ splits.tx_guid AS 'guid',
 (SELECT t.description FROM transactions AS t WHERE t.guid=splits.tx_guid) As 'description', 
 splits.value_num, splits.value_denom, 
 (SELECT a.name FROM accounts AS a WHERE a.guid=splits.account_guid) As 'account_name', 
-splits.account_guid 
+splits.account_guid,
+(COALESCE((SELECT slots.string_val FROM slots WHERE slots.obj_guid=splits.tx_guid),'')) AS 'memo' 
+
 FROM splits WHERE splits.tx_guid In (
 	SELECT transactions.guid FROM transactions where transactions.guid IN (
 		SELECT splits.tx_guid FROM splits where splits.account_guid=?

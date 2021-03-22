@@ -13,7 +13,9 @@ t.description,
 s.value_num,
 s.value_denom,
 (SELECT a.name FROM accounts AS a WHERE a.guid=s.account_guid) AS account_name,
-(SELECT a.guid FROM accounts AS a WHERE a.guid=s.account_guid)  AS account_guid
+(SELECT a.guid FROM accounts AS a WHERE a.guid=s.account_guid)  AS account_guid,
+(COALESCE((SELECT slots.string_val FROM slots WHERE slots.obj_guid=s.tx_guid),'')) AS 'memo'
+
 FROM splits AS s
 INNER JOIN transactions AS t ON s.tx_guid=t.guid
 
