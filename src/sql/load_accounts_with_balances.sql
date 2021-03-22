@@ -15,3 +15,4 @@ WHERE (hidden=0) AND (placeholder=0) AND
 	(NOT(account_type='EQUITY')) AND 
 	(NOT(account_type='INCOME')) AND 
 	(NOT(name='Expenses'))
+ORDER BY account_type, name
