@@ -28,6 +28,6 @@ cp -v money_manager_bg.wasm $project_directory/www/scripts/
 cp -v money_manager.js $project_directory/www/scripts/
 #Copy the standard html,css, and js files to the www directory
 cd $project_directory
-cp -rv src/scripts/ www/
-cp -rv src/css/ www/
+cp -r src/scripts/ www/
+cp -r src/css/ www/
 cp -v src/index.html www/

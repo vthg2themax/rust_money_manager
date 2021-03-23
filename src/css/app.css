@@ -47,6 +47,12 @@
     background-color: lightgrey;
 }
 
+/*Icons*/
+.trashcan {
+    min-width: 0.85vw;
+    margin-right: 0.25vw;
+}
+
 /*Specific Account classes*/
 #accounts_div {
     min-height: 85vh;

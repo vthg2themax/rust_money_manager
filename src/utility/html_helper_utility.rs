@@ -918,7 +918,10 @@ pub fn show_loading_message(message : String) {
 
 }
 
-
+/// load_last_transaction_for_account loads the last transaction for the account, and is 
+/// meant to be called from javascript because onblur events are not currently supported
+/// with wasm-bindgen.
+#[allow(dead_code)]
 #[wasm_bindgen()]
 pub fn load_last_transaction_for_account() {
     let error_message : String = String::from("Failed to load last transaction for account");
@@ -1406,25 +1409,14 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
         transactions_div.append_child(&transaction_div).expect("Failed to append transaction_div to accounts_div!");
 
         //Setup the transaction delete link, and place it inside the transactions div
-        let delete_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
-        let result = match dhu::convert_string_to_date(&txn.post_date) {
-            Ok(e) => {
-                e
-            },
-            Err(_ex) => {
-                NaiveDateTime::new(NaiveDate::from_ymd(0,1,1),
-                                    NaiveTime::from_hms(0,0,0)
-                                )
-            }
-        };
-
-        delete_link.set_text_content(Some(&result.format("%m/%d/%Y").to_string()));
+        let delete_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();        
+        delete_link.set_inner_html("<img src='/css/fontawesome-free-5.15.3-desktop/svgs/regular/trash-alt.svg' />");
         delete_link.set_href("#");
         delete_link.set_id(&txn_guid_selector);
         delete_link.dataset().set("guid", 
                                 &dhu::convert_guid_to_sqlite_string(&txn.guid))
                                 .expect("Failed to set dataset's txn_guid!");
-        delete_link.class_list().add_1("transaction_post_date").expect("Failed to add class to element.");
+        delete_link.class_list().add_1("trashcan").expect("Failed to add class to element.");
         transaction_div.append_child(&delete_link).expect("Failed to append delete_link to div!");
 
         //Setup the delete_link handler
@@ -1470,6 +1462,22 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
 
         delete_link.set_onclick(Some(delete_link_on_click.as_ref().unchecked_ref()));
         delete_link_on_click.forget();        
+
+        //Setup the transaction date        
+        let txn_date = document_create_element("div");
+        let result = match dhu::convert_string_to_date(&txn.post_date) {
+            Ok(e) => {
+                e
+            },
+            Err(_ex) => {
+                NaiveDateTime::new(NaiveDate::from_ymd(0,1,1),
+                                    NaiveTime::from_hms(0,0,0)
+                                )
+            }
+        };
+        txn_date.set_text_content(Some(&result.format("%m/%d/%Y").to_string()));
+        txn_date.class_list().add_1("transaction_post_date").expect("Failed to add class to element.");
+        transaction_div.append_child(&txn_date).expect("Failed to append txn_date!");
 
         //Setup the transaction description, and place it inside the transaction div
         let txn_description = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
