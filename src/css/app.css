@@ -48,18 +48,22 @@
 }
 
 /*Icons*/
-.trashcan {
+.trashcan,.edit {
     min-width: 2vw;
     margin-right: 0.25vw;
 }    
 @media screen and (min-width:800px) {
-    .trashcan {
+    .trashcan,.edit {
         min-width: 0.85vw;
         margin-right: 0.25vw;
     }    
 }
 
 /*Specific Account classes*/
+#new_account_button {
+  margin-bottom: 1vh;
+}
+
 #accounts_div {
     min-height: 85vh;
     max-height: 85vh;

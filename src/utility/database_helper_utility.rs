@@ -5,7 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
+
 use chrono::prelude::*;
 use regex::Regex;
 
@@ -62,6 +62,7 @@ const FORMAT_STRING : &str = "%Y%m%d%H%M%S";
 
 /// valid_database checks the database for the first 16 chars to determine if it's
 /// a valid database file. If it has this value, it probably is.
+#[allow(dead_code)]
 pub fn valid_database(incoming_database : js_sys::Uint8Array) -> Result<(),String> {    
     
     if (&incoming_database).to_vec().len() < 16 {
@@ -210,6 +211,7 @@ pub fn null_date() -> chrono::NaiveDateTime {
 
 ///convert_string_to_date_format attempts to convert a string to the sqlite
 /// database datetime format. 
+#[allow(dead_code)]
 pub fn convert_string_to_date_format(incoming_date : &mut chrono::NaiveDateTime,
                                      incoming_string: &str) -> bool {
     
@@ -395,7 +397,8 @@ pub fn convert_string_to_date(incoming_string: &str) -> Result<chrono::NaiveDate
 // }
 
 #[cfg(test)]
-mod tests {
+#[allow(unused_imports)]
+mod tests {    
     use super::*;
 
     // #[test]

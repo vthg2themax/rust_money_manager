@@ -1,4 +1,3 @@
-use serde_repr::*;
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::prelude::*;
 use uuid::Uuid;
@@ -29,6 +28,36 @@ pub fn _fields() -> String {
          )
 } 
 
+/// retrieve_all_commodities retrieves all the commodities in the system.
+pub fn retrieve_all_commodities() -> Vec<Commodity> {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to select from you commodities.");
+        }
+        
+        //Prepare a statement
+        let stmt = crate::DATABASE[0].prepare("SELECT * FROM commodities");
+    
+        let mut commodities = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let commodity : Commodity = row.clone().into_serde().unwrap();
+
+            commodities.push(commodity);
+        }
+
+        stmt.free();
+    
+        return commodities;
+    
+    }
+}
+
+/// retrieve_commodity_for_guid retrieves a commodity for a guid. Will cause an exception,
+/// if it fails, so be careful!
 pub fn retrieve_commodity_for_guid(commodity_guid : Uuid) -> Commodity {
     unsafe {
         if crate::DATABASE.len() == 0 {
@@ -63,77 +92,6 @@ pub fn retrieve_commodity_for_guid(commodity_guid : Uuid) -> Commodity {
     
     }
 }
-
-// ///retrieve_all_commodities retrieves all the commodity records.
-// pub fn retrieve_all_commodities(file_path : &str) -> Result<Vec<Commodity>> {
-//     //Attempt to open the file from the given path to perform this operation
-//     let conn = Connection::open(file_path)?;
-//     //Get all the book records
-//     let sql : String = String::from(
-//         ["SELECT ",&_fields()," FROM commodities ", 
-//          ""].join(""));
-//     let mut stmt = conn.prepare(&sql)?;
-//     //Get all the commodities into a vector for returning the result
-//     let mut commodities : Vec<Commodity> = Vec::new();
-//     let mapped_rows = stmt.query_map(NO_PARAMS, |row| 
-//         Ok( 
-//             Commodity{
-//                     guid: dhu::convert_string_result_to_guid(row.get(0))?,
-//                     namespace: row.get(1)?,
-//                     mnemonic: row.get(2)?,
-//                     fullname: row.get(3)?,
-//                     cusip: row.get(4)?,
-//                     fraction: row.get(5)?,
-//                     quote_flag: row.get(6)?,
-//                     quote_source: row.get(7)?,
-//                     quote_tz: row.get(8)?,
-//             }
-//         )
-//     )?;
-
-//     //Now we can put each of the mapped row results into the results vector
-//     for row in mapped_rows {
-//         commodities.push(row?);
-//     }    
-
-//     Ok(commodities)
-// }
-
-// ///retrieve_by_guid retrieves a commodity by it's guid.
-// pub fn retrieve_by_guid(file_path : &str, incoming_guid : GUID) -> Result<Vec<Commodity>> {
-//     //Attempt to open the file from the given path to perform this operation
-//     let conn = Connection::open(file_path)?;
-//     //Get all the commodity record fields
-//     let sql : String = String::from(
-//         ["SELECT ",&_fields()," FROM commodities ", 
-//          "WHERE guid=@guid"].join(""));
-//     let mut stmt = conn.prepare(&sql)?;
-//     //Get all the records into a vector for returning the result
-//     let mut commodities : Vec<Commodity> = Vec::new();
-//     let mapped_rows = stmt.query_map_named(
-//         named_params!{"@guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, |row| 
-//         Ok( 
-//             Commodity{
-//                     guid: dhu::convert_string_result_to_guid(row.get(0))?,
-//                     namespace: row.get(1)?,
-//                     mnemonic: row.get(2)?,
-//                     fullname: row.get(3)?,
-//                     cusip: row.get(4)?,
-//                     fraction: row.get(5)?,
-//                     quote_flag: row.get(6)?,
-//                     quote_source: row.get(7)?,
-//                     quote_tz: row.get(8)?,
-//             }
-//         )
-//     )?;
-
-//     //Now we can put each of the mapped row results into the results vector
-//     for row in mapped_rows {
-//         commodities.push(row?);
-//     }    
-
-//     Ok(commodities)
-// }
 
 // pub fn save_new(file_path : &str, incoming_commodity : &Commodity) -> Result<bool> {
 //     //Attempt to open the file from the given path to perform this operation

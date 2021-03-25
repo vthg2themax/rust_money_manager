@@ -11,7 +11,7 @@ use std::fmt;
 use serde_repr::*;
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum AccountType {
     ASSET, 
     BANK, 
@@ -91,6 +91,134 @@ pub fn _fields() -> String {
          )
 } 
 
+/// save_new_and_delete_current saves a new account record, but first deletes the 
+/// current one with the given account.guid. 
+pub fn save_new_and_delete_current(account : Account) -> Result<bool,String> {
+    //var db = new sqlContext.Database();
+    //// Run a query without reading the results
+    //db.run("CREATE TABLE test (col1, col2);");
+    //// Insert two rows: (1,111) and (2,222)
+    //db.run("INSERT INTO test VALUES (?,?), (?,?)", [1, 111, 2, 222]);
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            return Err("Please select a database in order to save this new database.".to_string());
+        }
+
+        {            
+            //Delete the Account Record first
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&account.guid),
+                    )
+            ).unwrap();
+            crate::DATABASE[0].run_with_parameters("DELETE FROM Accounts WHERE guid=?", binding_object);
+                        
+            //Insert The Account Record
+            let binding_object = JsValue::from_serde(
+                &vec!(
+                        &dhu::convert_guid_to_sqlite_string(&account.guid),
+                        &account.name,
+                        &format!("{:?}",&account.account_type),
+                        &account.non_std_scu.to_string(),
+                        &account.code,
+                        &account.description,
+                    )
+            ).unwrap();
+
+            let mut commodity_guid = "NULL".to_string();
+            let mut commodity_scu = "0".to_string();
+            
+            if account.commodity_guid.is_some() {
+                let guid = dhu::convert_guid_to_sqlite_string(&account.commodity_guid.unwrap());
+                commodity_guid = format!("'{}'",guid);
+                commodity_scu = format!("(SELECT fraction FROM commodities WHERE guid='{}')",guid);
+            }
+
+            let mut parent_guid = "NULL".to_string();
+            if account.parent_guid.is_some() && account.parent_guid.unwrap() != Uuid::nil() {
+                let guid = dhu::convert_guid_to_sqlite_string(&account.parent_guid.unwrap());
+                parent_guid = format!("'{}'",guid);
+            }
+            
+
+            crate::DATABASE[0].run_with_parameters(&format!("
+                INSERT INTO Accounts(guid,name,account_type,commodity_guid,
+                                    commodity_scu,non_std_scu,parent_guid,code,description,hidden,placeholder) 
+                             VALUES ({guid},{name},{account_type},{commodity_guid},{commodity_scu},{non_std_scu},
+                                    {parent_guid},{code},{description},{hidden},{placeholder}) ",
+                                    guid="?",
+                                    name="?",
+                                    account_type="?",
+                                    commodity_guid=commodity_guid,
+                                    commodity_scu=commodity_scu,
+                                    non_std_scu="?",
+                                    parent_guid=parent_guid,
+                                    code="?",
+                                    description="?",
+                                    hidden={
+                                        if account.hidden == Bool::True {
+                                            "1"
+                                        } else {
+                                            "0"
+                                        }
+                                    },
+                                    placeholder={
+                                        if account.placeholder == Bool::True {
+                                            "1"
+                                        } else {
+                                            "0"
+                                        }
+                                    }
+                                ), binding_object);
+
+            js::log(&format!("Account GUID '{}'",&account.guid));
+                        
+        }
+    }
+    
+    return Ok(true);
+}
+
+/// retrieve_account_for_guid retrieves an account for a given guid as a result.
+pub fn retrieve_account_for_guid(account_guid : Uuid) -> Result<Account, String> {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to refresh your accounts view.");
+        }
+        
+        //Prepare a statement
+        let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_date_and_guid());
+    
+        let binding_object = JsValue::from_serde(
+            &vec!(&dhu::convert_date_to_string_format(chrono::Local::now().naive_local()),
+                    &dhu::convert_guid_to_sqlite_string(&account_guid),
+                )
+        ).unwrap();
+
+        stmt.bind(binding_object.clone());
+
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let account : Account = row.clone().into_serde().unwrap();
+
+            accounts.push(account);
+        }
+
+        stmt.free();
+
+        if accounts.len() > 0 {
+            return Ok(accounts[0].clone());
+        } else {
+            return Err(String::from("No account for this guid"));
+        }
+    
+    }
+}
+
 /// load_account_for_guid loads an account for the given date.
 pub fn load_account_for_guid(account_guid : Uuid) -> Account {
     unsafe {
@@ -144,48 +272,6 @@ pub fn load_all_accounts_except_root_and_template_from_memory() -> Vec<Account> 
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
             let account : Account = row.clone().into_serde().unwrap();
-
-            accounts.push(account);
-        }
-
-        stmt.free();
-    
-        return accounts;
-    
-    }
-}
-
-pub fn load_accounts_with_balances_from_memory() -> Vec<Account> {
-    unsafe {
-        if crate::DATABASE.len() == 0 {
-            panic!("Please select a database to refresh your accounts view.");
-        }
-        
-        //Prepare a statement
-        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::load_accounts_with_balances());
-        stmt.getAsObject();
-
-        let mut accounts = Vec::new();
-
-        while stmt.step() {
-            let row = stmt.getAsObject();
-            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
-
-            let mut account : Account = row.clone().into_serde().unwrap();
-            let tags : serde_json::Value = serde_json::from_str(                                    
-                                                js::stringify(row.clone()).as_str()                                    
-                                            ).unwrap();
-
-            let balance = format!("{}",
-                            tags["balance"])
-                            .parse::<f64>()
-                            .expect("Balance is not valid!");
-            account.tags.insert("balance".to_string(), balance.to_string());
-
-            let mnemonic : String = dhu::remove_first_and_last_double_quotes_from_string(
-                                        tags["mnemonic"].to_string()
-                                    );
-            account.tags.insert("mnemonic".to_string(), mnemonic.clone());
 
             accounts.push(account);
         }

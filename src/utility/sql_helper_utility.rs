@@ -1,3 +1,6 @@
+///sql_helper_utility is all the sql files in use by the program.
+/// There should only be complex ones here, because simple ones don't need their own file.
+
 /// load_splits_for_last_30_day_report loads the last 30 days of splits.
 /// The 3 parameters are start_date, end_date, and account_type.
 pub fn load_splits_for_last_30_day_report() -> String {

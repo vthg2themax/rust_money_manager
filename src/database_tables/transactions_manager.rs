@@ -1,6 +1,5 @@
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 
 use uuid::Uuid;
 // use chrono::prelude::*;
