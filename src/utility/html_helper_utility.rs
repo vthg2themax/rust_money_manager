@@ -20,127 +20,9 @@ use rand::prelude::*;
 
 use uuid::*;
 
-// use crate::{
-//     accounts_manager, books_manager, commodities_manager, database_helper_utility, 
-//     html_helper_utility, versions_manager, lots_manager, slots_manager
-//     };
-
-//use std::collections::HashMap;
-//use chrono::prelude::*;
-//use guid_create::GUID;
-//use crate::database_helper_utility as dhu;
-
-// #[wasm_bindgen]
-// pub fn load_accounts_from_file_with_balances(file_input : web_sys::HtmlInputElement) {
-//     //Check the file list from the input
-//     let filelist = file_input.files().expect("Failed to get filelist from File Input!");
-//     //Do not allow blank inputs
-//     if filelist.length() < 1 {
-//         js::alert("Please select at least one file.");
-//         return;
-//     }
-//     if filelist.get(0) == None {
-//         js::alert("Please select a valid file");
-//         return;
-//     }
-    
-//     let file = filelist.get(0).expect("Failed to get File from filelist!");
-
-//     let file_reader : web_sys::FileReader = match web_sys::FileReader::new() {
-//         Ok(f) => f,
-//         Err(e) => {
-//             js::alert("There was an error creating a file reader");
-//             js::log(&JsValue::as_string(&e).expect("error converting jsvalue to string."));
-//             web_sys::FileReader::new().expect("")
-//         }
-//     };
-
-//     let fr_c = file_reader.clone();
-//     // create onLoadEnd callback
-//     let onloadend_cb = Closure::wrap(Box::new(move |_e: web_sys::ProgressEvent| {
-//         let array = js_sys::Uint8Array::new(&fr_c.result().unwrap());
-//         let len = array.byte_length() as usize;
-//         js::log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
-//         // here you can for example use the received image/png data
-//         let db : dhu::Database = dhu::Database::new(array.clone());
-        
-//         unsafe {
-//             crate::DATABASE.push(dhu::Database::new(array.clone()));
-//         }
-
-//         //Prepare a statement
-//         let stmt : dhu::Statement = db.prepare(&shu::sql_load_accounts_with_balances());
-//         stmt.getAsObject();
-
-//         // Bind new values
-//         stmt.bind(JsValue::from(JsValue::null()));
-
-//         let mut accounts = Vec::new();
-
-//         while stmt.step() {
-//             let row = stmt.getAsObject();
-//             //log(&("Here is a row: ".to_owned() + &stringify(row.clone()).to_owned()));
-
-//             let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
-//             let tags : serde_json::Value = serde_json::from_str(                                    
-//                                         js::stringify(row.clone()).as_str()                                    
-//                                 ).unwrap();
-
-//             let balance = format!("{}",tags["balance"])
-//                             .parse::<f64>()
-//                             .expect("Balance is not valid!");
-            
-//             account.tags.insert("balance".to_string(), balance.to_string());
-
-//             //log(format!("The balance is: {}", balance).as_str());
-//             accounts.push(account);
-//         }
-
-//         stmt.free();
-
-//         load_accounts_into_body(accounts);
-
-//     }) as Box<dyn Fn(web_sys::ProgressEvent)>);
-
-//     file_reader.set_onloadend(Some(onloadend_cb.as_ref().unchecked_ref()));
-//     file_reader.read_as_array_buffer(&file).expect("blob not readable");
-//     onloadend_cb.forget();
-
-// }
-
-/// load_settings_into_body_from_memory loads the settings from the database into 
-/// slot records, and then loads those into the settings page for the page.
-pub fn load_settings_into_body_from_memory() {
-    unsafe {
-        if crate::DATABASE.len() == 0 {
-            js::alert("Please select a database to see your settings.");
-            return;
-        }
-        
-        //Prepare a statement
-        let stmt : dhu::Statement = crate::DATABASE[0].prepare(&shu::load_settings());
-        stmt.getAsObject();
-
-        let mut slots = Vec::new();
-
-        while stmt.step() {
-            let row = stmt.getAsObject();
-            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
-
-            let slot : slots_manager::Slot = row.clone().into_serde().unwrap();
-            slots.push(slot);
-        }
-
-        stmt.free();
-    
-        load_settings_into_body(slots);
-    
-    }
-}
-
 /// save_setting_for_display_transactions_older_than_one_year saves the setting
 /// for displaying transactions older than one year, by deleting the named slots record by name and 
-/// string_val and then saving a new one with the correct value from the checkebox on the page.
+/// string_val and then saving a new one with the correct value from the checkbox on the page.
 pub fn save_setting_for_display_transactions_older_than_one_year() {
     
     let setting_checkbox = document_query_selector("#settings_display_transactions_older_than_one_year_checkbox")
@@ -487,7 +369,7 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
     let onloadend_cb = Closure::wrap(Box::new(move |_e: web_sys::ProgressEvent| {
         let array = js_sys::Uint8Array::new(&fr_c.result().unwrap());
         let len = array.byte_length() as usize;
-        js::log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
+        //js::log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
         
         //Check for a valid database now that we have the bytes
         // match dhu::valid_database(array.clone()) {
@@ -505,6 +387,12 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
             }
             
             crate::DATABASE.push(dhu::Database::new(array.clone()));
+
+            //Create a new input with the filename
+            let money_manager_filename_input = document_query_selector("#money_manager_filename_input")
+                                                .dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            money_manager_filename_input.set_value(&file_input.files().unwrap().get(0).unwrap().name());
+            
 
             //Remove the file after we are done loading it.
             file_input.set_files(None);
@@ -864,8 +752,15 @@ pub fn wireup_controls() {
     {
         //Setup the settings button handler
         let main_menu_settings_on_click = Closure::wrap(Box::new(move || {        
-            
-            load_settings_into_body_from_memory();
+            //Attempt to load the settings
+            match slots_manager::load_slots_for_name("settings".to_string()) {
+                Ok(slots) => {
+                    load_settings_into_body(slots);
+                },
+                Err(e) => {
+                    js::alert(&e);
+                },
+            }            
             
         }) as Box<dyn Fn()>);
         
@@ -1235,8 +1130,8 @@ pub fn get_database_array() -> js_sys::Uint8Array {
         if crate::DATABASE.len() == 0 {
             panic!("Please select a database to refresh your accounts view.");
         }
-        let blob = crate::DATABASE[0].export();        
-        return blob;
+        
+        return crate::DATABASE[0].export();
     }
 }
 
@@ -1250,9 +1145,9 @@ pub fn save_database() {
         let blob = crate::DATABASE[0].export();
         let b64 = base64::encode(blob.to_vec());
 
-        let filename = document_query_selector("#money_manager_file_input")
+        let filename = document_query_selector("#money_manager_filename_input")
                                         .dyn_into::<web_sys::HtmlInputElement>()
-                                        .unwrap().files().unwrap().get(0).unwrap().name();
+                                        .unwrap().value();
 
         let body = document_query_selector("#body");
         let div = document_create_element("div");

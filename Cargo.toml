@@ -21,10 +21,10 @@ version = "0.4.19"
 features = ["serde", "wasmbind"]
 
 [dependencies.serde_derive]
-version = "1.0.124"
+version = "1.0.125"
 
 [dependencies.serde]
-version = "1.0.124"
+version = "1.0.125"
 features = [
   "derive",
 ]
@@ -38,13 +38,13 @@ features = [
 ]
 
 [dependencies.wasm-bindgen]
-version = "0.2.72"
+version = "0.2.73"
 features = [
   "serde-serialize",
 ]
 
 [dependencies.web-sys]
-version = "0.3.49"
+version = "0.3.50"
 features = [
   "Document",
   "Element",
@@ -75,7 +75,7 @@ features = [
   ]
 
 [dependencies.js-sys]
-version = "0.3.49"
+version = "0.3.50"
 features = [
   
 ]

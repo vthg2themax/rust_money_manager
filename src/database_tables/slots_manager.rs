@@ -104,6 +104,42 @@ pub fn save_slot_for_name_and_string_val_and_int64_val(name: String, string_val:
     return Ok(true);
 }
 
+
+/// load_slots_for_name loads a slot for the given name value.
+pub fn load_slots_for_name(name: String) -> Result<Vec<Slot>,String> {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            return Err("Please select a database in order to load a slot for the given parameters.".to_string());
+        }
+
+        //Prepare a statement
+        let stmt = crate::DATABASE[0].prepare(&shu::load_slots_for_name());
+
+        let binding_object = JsValue::from_serde(
+            &vec!(
+                    name
+                )
+        ).unwrap();
+
+        stmt.bind(binding_object.clone());
+
+        let mut slots = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let slot : Slot = row.clone().into_serde().unwrap();
+
+            slots.push(slot);
+        }
+
+        stmt.free();
+    
+        return Ok(slots);
+    }    
+}
+
 /// load_slot_for_name_and_string_val loads a slot for the given name, and string_val.
 pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> Result<Vec<Slot>,String> {
     unsafe {

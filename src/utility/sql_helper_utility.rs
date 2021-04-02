@@ -8,8 +8,9 @@ pub fn load_splits_for_last_30_day_report() -> String {
     String::from_utf8_lossy(bytes).to_string()
 }
 
-pub fn load_settings() -> String {
-    let bytes = include_bytes!("../sql/load_settings.sql");
+/// load_slots_for_name gives you all the slots with a given name. 
+pub fn load_slots_for_name() -> String {
+    let bytes = include_bytes!("../sql/load_slots_for_name.sql");
     String::from_utf8_lossy(bytes).to_string()
 }
 
