@@ -109,7 +109,7 @@ pub fn save_slot_for_name_and_string_val_and_int64_val(name: String, string_val:
 pub fn load_slots_for_name(name: String) -> Result<Vec<Slot>,String> {
     unsafe {
         if crate::DATABASE.len() == 0 {
-            return Err("Please select a database in order to load a slot for the given parameters.".to_string());
+            return Err("Please select a database in order to continue.".to_string());
         }
 
         //Prepare a statement

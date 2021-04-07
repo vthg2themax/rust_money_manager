@@ -232,7 +232,7 @@ pub fn display_last_30_days_report() {
     body_div.set_inner_html(&final_html);
 }
 
-/// load_settings_into_body loads teh settings into the body from the given slots
+/// load_settings_into_body loads the settings into the body from the given slots
 pub fn load_settings_into_body(settings_slots : Vec<slots_manager::Slot>) {
     //Clear out the body, and footer first    
     let body_div = document_query_selector("#body");
@@ -250,6 +250,42 @@ pub fn load_settings_into_body(settings_slots : Vec<slots_manager::Slot>) {
     settings_header.set_id("settings_header");
     settings_header.set_inner_html("Settings");
     settings_div.append_child(&settings_header).unwrap();
+
+    //Create a button that creates a new database
+    let new_database_button = document_create_element("input")
+                                .dyn_into::<web_sys::HtmlInputElement>().unwrap();
+    new_database_button.set_type("button");
+    new_database_button.set_value("Create Database");
+    new_database_button.set_id("new_database_button");
+
+    let new_database_button_on_click = Closure::wrap(Box::new(move || {
+        if js::confirm("Are you sure you want to create a new database?") {
+            let empty_database = dhu::Database::new_empty();
+            let filled_database = dhu::create_default_database_tables(empty_database);
+            let blob = filled_database.export();
+            let b64 = base64::encode(blob.to_vec());
+
+            let body = document_query_selector("#body");
+            let div = document_create_element("div");
+            div.set_inner_html(
+                    &format!("<a download='MoneyManagerFile.gnucash' id='MoneyManagerFile' 
+                                href='data:application/octet-stream;base64,{base64_string}' target='_self'>Download</a>",
+                                base64_string = b64,
+                            )
+            );
+
+            body.append_child(&div).unwrap();
+            
+            document_query_selector("#MoneyManagerFile").click();
+            
+            div.set_inner_html("");
+        }
+    }) as Box<dyn Fn()>);
+    
+    new_database_button.set_onclick(Some(new_database_button_on_click.as_ref().unchecked_ref()));
+    new_database_button_on_click.forget();
+
+    settings_div.append_child(&new_database_button).unwrap();    
 
     //Then the Display Transactions Older than 1 year Setting
     let settings_display_transactions_older_than_one_year_label = document_create_element("label");
@@ -288,6 +324,7 @@ pub fn load_settings_into_body(settings_slots : Vec<slots_manager::Slot>) {
             }
         }
     }
+
 }
 
 /// load_accounts_with_balances_from_memory loads all the accounts with balances from memory.
@@ -368,7 +405,7 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
     // create onLoadEnd callback
     let onloadend_cb = Closure::wrap(Box::new(move |_e: web_sys::ProgressEvent| {
         let array = js_sys::Uint8Array::new(&fr_c.result().unwrap());
-        let len = array.byte_length() as usize;
+        //let len = array.byte_length() as usize;
         //js::log(&format!("Blob received {}bytes: {:?}", len, array.to_vec()));
         
         //Check for a valid database now that we have the bytes
@@ -753,15 +790,16 @@ pub fn wireup_controls() {
         //Setup the settings button handler
         let main_menu_settings_on_click = Closure::wrap(Box::new(move || {        
             //Attempt to load the settings
-            match slots_manager::load_slots_for_name("settings".to_string()) {
-                Ok(slots) => {
+            unsafe {
+                if crate::DATABASE.len() < 1 {
+                    let slots : Vec<slots_manager::Slot> = Vec::new();
                     load_settings_into_body(slots);
-                },
-                Err(e) => {
-                    js::alert(&e);
-                },
+                } else {
+                    let slots = slots_manager::load_slots_for_name("settings".to_string())
+                                        .expect("Failed to load slots for the name 'settings'!");
+                    load_settings_into_body(slots);                                    
+                }
             }            
-            
         }) as Box<dyn Fn()>);
         
         let main_menu_settings = document_query_selector("#main_menu_settings");     
@@ -950,6 +988,7 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
         change_input.set_placeholder("Amount");
 
         transaction_editor_top_row.append_child(&change_input).expect(&error_message);
+
     }    
 
     //Setup the bottom row
@@ -1052,8 +1091,8 @@ pub fn enter_transaction_on_click() {
                         .expect("Missing Commodity Guid!")
                     );
 
-    let value_num = (amount * commodity.fraction as f64) as i64;
-
+    let value_num = (amount * commodity.fraction as f64).round() as i64;
+    
     //Get the account_name, and guid from the category select
     let category_select = document_query_selector("#category_select")
                             .dyn_into::<web_sys::HtmlSelectElement>()
@@ -1801,6 +1840,8 @@ pub fn save_account_with_guid(account_guid : Uuid) {
         }
     };
 
+    let parent_guid = accounts_manager::retrieve_account_for_account_type(account_type.to_string()).unwrap().guid;
+
     let account_to_save = accounts_manager::Account {
         guid: account_guid,
         name: account_name,
@@ -1808,7 +1849,7 @@ pub fn save_account_with_guid(account_guid : Uuid) {
         commodity_guid: Some(commodity_guid),//Commodity_Guid is the commodity guid the account uses. Ex: USD or YEN.
         commodity_scu: 100,//Commodity_Scu is the commodity scu. 100 for USD.
         non_std_scu: -1, //Non_Std_Scu is the non std scu. -1 by default
-        parent_guid: Some(Uuid::nil()), //Parent_Guid is the parent of this account's GUID. null guid by default
+        parent_guid: Some(parent_guid), //Parent_Guid is the parent of this account's GUID. null guid by default
         code: account_code, //Code is the code for this account. Blank by default
         description: account_description, //Description is the description for this account. Blank by default.
         hidden: account_hidden, //Hidden is a bit field whether this account is hidden or not.

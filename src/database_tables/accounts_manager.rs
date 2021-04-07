@@ -84,12 +84,7 @@ pub struct Account {
 
 //_Fields: guid,name,account_type,commodity_guid,commodity_scu,non_std_scu,
 //         parent_guid,code,description,hidden,placeholder "
-pub fn _fields() -> String {
-    String::from(
-        ["guid,name,account_type,commodity_guid,commodity_scu,non_std_scu,",
-         "parent_guid,code,description,hidden,placeholder "].join("")
-         )
-} 
+pub const FIELDS : &str = "guid,name,account_type,commodity_guid,commodity_scu,non_std_scu,parent_guid,code,description,hidden,placeholder";
 
 /// save_new_and_delete_current saves a new account record, but first deletes the 
 /// current one with the given account.guid. 
@@ -177,6 +172,52 @@ pub fn save_new_and_delete_current(account : Account) -> Result<bool,String> {
     }
     
     return Ok(true);
+}
+
+/// retrieve_account_for_account_type retrieves an account for a given account_type as a result.
+pub fn retrieve_account_for_account_type(account_type : String) -> Result<Account, String> {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to refresh your accounts view.");
+        }
+        
+        //Prepare a statement
+        let stmt = crate::DATABASE[0].prepare("
+        SELECT * FROM accounts WHERE account_type=?
+        AND (
+            parent_guid IN (SELECT guid FROM accounts WHERE parent_guid IS NULL and name = 'Root Account') 
+            OR 
+            parent_guid IN (SELECT guid FROM accounts WHERE name = 'Liabilities') 
+        )");
+    
+        let binding_object = JsValue::from_serde(
+            &vec!(
+                    account_type,
+                )
+        ).unwrap();
+
+        stmt.bind(binding_object.clone());
+
+        let mut accounts = Vec::new();
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let account : Account = row.clone().into_serde().unwrap();
+
+            accounts.push(account);
+        }
+
+        stmt.free();
+
+        if accounts.len() > 0 {
+            return Ok(accounts[0].clone());
+        } else {
+            return Err(String::from("No account for this name!"));
+        }
+    
+    }
 }
 
 /// retrieve_account_for_guid retrieves an account for a given guid as a result.

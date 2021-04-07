@@ -21,12 +21,7 @@ pub struct Commodity {
     pub quote_tz: String, //(Ex: 'USD' = Empty String): The timezone to assign on the online quotes
 }
 
-pub fn _fields() -> String {
-    String::from(
-        ["guid,namespace,mnemonic,fullname,cusip,",
-         "fraction,quote_flag,quote_source,quote_tz"].join("")
-         )
-} 
+pub const FIELDS : &str = "guid,namespace,mnemonic,fullname,cusip,fraction,quote_flag,quote_source,quote_tz"; 
 
 /// retrieve_all_commodities retrieves all the commodities in the system.
 pub fn retrieve_all_commodities() -> Vec<Commodity> {

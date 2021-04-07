@@ -9,6 +9,8 @@ use wasm_bindgen::prelude::*;
 use chrono::prelude::*;
 use regex::Regex;
 
+use crate::database_tables::commodities_manager;
+use crate::database_tables::accounts_manager;
 
 #[wasm_bindgen()]
 extern "C" {
@@ -16,6 +18,9 @@ extern "C" {
 
     #[wasm_bindgen(constructor, js_namespace = sqlContext)]
     pub fn new(array: js_sys::Uint8Array) -> Database;
+
+    #[wasm_bindgen(constructor, js_namespace = sqlContext, js_name = new)]
+    pub fn new_empty() -> Database;
 
     #[wasm_bindgen(method)]
     pub fn prepare(this: &Database, s: &str) -> Statement;
@@ -107,6 +112,245 @@ pub fn convert_string_to_guid(incoming_string : String) -> Result<Uuid,String> {
 
 }
 
+
+pub fn create_default_database_tables(empty_database: Database) -> Database {
+    let create_table_sql = 
+    "CREATE TABLE accounts (guid text(32) PRIMARY KEY Not NULL, name text(2048) Not NULL, account_type text(2048) Not NULL, commodity_guid text(32), commodity_scu Integer Not NULL, non_std_scu Integer Not NULL, parent_guid text(32), code text(2048), description text(2048), hidden Integer, placeholder Integer);
+    CREATE TABLE billterms (guid text(32) PRIMARY KEY Not NULL, name text(2048) Not NULL, description text(2048) Not NULL, refcount Integer Not NULL, invisible Integer Not NULL, parent text(32), type text(2048) Not NULL, duedays Integer, discountdays Integer, discount_num bigint, discount_denom bigint, cutoff Integer);
+    CREATE TABLE books (guid text(32) PRIMARY KEY Not NULL, root_account_guid text(32) Not NULL, root_template_guid text(32) Not NULL);
+    CREATE TABLE budget_amounts (id Integer PRIMARY KEY AUTOINCREMENT Not NULL, budget_guid text(32) Not NULL, account_guid text(32) Not NULL, period_num Integer Not NULL, amount_num bigint Not NULL, amount_denom bigint Not NULL);
+    CREATE TABLE budgets (guid text(32) PRIMARY KEY Not NULL, name text(2048) Not NULL, description text(2048), num_periods Integer Not NULL);
+    CREATE TABLE commodities (guid text(32) PRIMARY KEY Not NULL, namespace text(2048) Not NULL, mnemonic text(2048) Not NULL, fullname text(2048), cusip text(2048), fraction Integer Not NULL, quote_flag Integer Not NULL, quote_source text(2048), quote_tz text(2048));
+    CREATE TABLE customers (guid text(32) PRIMARY KEY Not NULL, name text(2048) Not NULL, id text(2048) Not NULL, notes text(2048) Not NULL, active Integer Not NULL, discount_num bigint Not NULL, discount_denom bigint Not NULL, credit_num bigint Not NULL, credit_denom bigint Not NULL, currency text(32) Not NULL, tax_override Integer Not NULL, addr_name text(1024), addr_addr1 text(1024), addr_addr2 text(1024), addr_addr3 text(1024), addr_addr4 text(1024), addr_phone text(128), addr_fax text(128), addr_email text(256), shipaddr_name text(1024), shipaddr_addr1 text(1024), shipaddr_addr2 text(1024), shipaddr_addr3 text(1024), shipaddr_addr4 text(1024), shipaddr_phone text(128), shipaddr_fax text(128), shipaddr_email text(256), terms text(32), tax_included Integer, taxtable text(32));
+    CREATE TABLE employees (guid text(32) PRIMARY KEY Not NULL, username text(2048) Not NULL, id text(2048) Not NULL, language text(2048) Not NULL, acl text(2048) Not NULL, active Integer Not NULL, currency text(32) Not NULL, ccard_guid text(32), workday_num bigint Not NULL, workday_denom bigint Not NULL, rate_num bigint Not NULL, rate_denom bigint Not NULL, addr_name text(1024), addr_addr1 text(1024), addr_addr2 text(1024), addr_addr3 text(1024), addr_addr4 text(1024), addr_phone text(128), addr_fax text(128), addr_email text(256));
+    CREATE TABLE entries (guid text(32) PRIMARY KEY Not NULL, Date text(14) Not NULL, date_entered text(14), description text(2048), action text(2048), notes text(2048), quantity_num bigint, quantity_denom bigint, i_acct text(32), i_price_num bigint, i_price_denom bigint, i_discount_num bigint, i_discount_denom bigint, invoice text(32), i_disc_type text(2048), i_disc_how text(2048), i_taxable Integer, i_taxincluded Integer, i_taxtable text(32), b_acct text(32), b_price_num bigint, b_price_denom bigint, bill text(32), b_taxable Integer, b_taxincluded Integer, b_taxtable text(32), b_paytype Integer, billable Integer, billto_type Integer, billto_guid text(32), order_guid text(32));
+    CREATE TABLE gnclock ( Hostname varchar(255), PID int );
+    CREATE TABLE invoices (guid text(32) PRIMARY KEY Not NULL, id text(2048) Not NULL, date_opened text(14), date_posted text(14), notes text(2048) Not NULL, active Integer Not NULL, currency text(32) Not NULL, owner_type Integer, owner_guid text(32), terms text(32), billing_id text(2048), post_txn text(32), post_lot text(32), post_acc text(32), billto_type Integer, billto_guid text(32), charge_amt_num bigint, charge_amt_denom bigint);
+    CREATE TABLE jobs (guid text(32) PRIMARY KEY Not NULL, id text(2048) Not NULL, name text(2048) Not NULL, reference text(2048) Not NULL, active Integer Not NULL, owner_type Integer, owner_guid text(32));
+    CREATE TABLE lots (guid text(32) PRIMARY KEY Not NULL, account_guid text(32), is_closed Integer Not NULL);
+    CREATE TABLE orders (guid text(32) PRIMARY KEY Not NULL, id text(2048) Not NULL, notes text(2048) Not NULL, reference text(2048) Not NULL, active Integer Not NULL, date_opened text(14) Not NULL, date_closed text(14) Not NULL, owner_type Integer Not NULL, owner_guid text(32) Not NULL);
+    CREATE TABLE prices (guid text(32) PRIMARY KEY Not NULL, commodity_guid text(32) Not NULL, currency_guid text(32) Not NULL, Date text(14) Not NULL, source text(2048), type text(2048), value_num bigint Not NULL, value_denom bigint Not NULL);
+    CREATE TABLE recurrences (id Integer PRIMARY KEY AUTOINCREMENT Not NULL, obj_guid text(32) Not NULL, recurrence_mult Integer Not NULL, recurrence_period_type text(2048) Not NULL, recurrence_period_start text(8) Not NULL, recurrence_weekend_adjust text(2048) Not NULL);
+    CREATE TABLE schedxactions (guid text(32) PRIMARY KEY Not NULL, name text(2048), enabled Integer Not NULL, start_date text(8), end_date text(8), last_occur text(8), num_occur Integer Not NULL, rem_occur Integer Not NULL, auto_create Integer Not NULL, auto_notify Integer Not NULL, adv_creation Integer Not NULL, adv_notify Integer Not NULL, instance_count Integer Not NULL, template_act_guid text(32) Not NULL);
+    CREATE TABLE slots (id Integer PRIMARY KEY AUTOINCREMENT Not NULL, obj_guid text(32) Not NULL, name text(4096) Not NULL, slot_type Integer Not NULL, int64_val bigint, string_val text(4096), double_val float8, timespec_val text(14), guid_val text(32), numeric_val_num bigint, numeric_val_denom bigint, gdate_val text(8));
+    CREATE TABLE splits (guid text(32) PRIMARY KEY Not NULL, tx_guid text(32) Not NULL, account_guid text(32) Not NULL, memo text(2048) Not NULL, action text(2048) Not NULL, reconcile_state text(1) Not NULL, reconcile_date text(14), value_num bigint Not NULL, value_denom bigint Not NULL, quantity_num bigint Not NULL, quantity_denom bigint Not NULL, lot_guid text(32));
+    CREATE TABLE taxtable_entries (id Integer PRIMARY KEY AUTOINCREMENT Not NULL, taxtable text(32) Not NULL, account text(32) Not NULL, amount_num bigint Not NULL, amount_denom bigint Not NULL, type Integer Not NULL);
+    CREATE TABLE taxtables (guid text(32) PRIMARY KEY Not NULL, name text(50) Not NULL, refcount bigint Not NULL, invisible Integer Not NULL, parent text(32));
+    CREATE TABLE transactions (guid text(32) PRIMARY KEY Not NULL, currency_guid text(32) Not NULL, num text(2048) Not NULL, post_date text(14), enter_date text(14), description text(2048));
+    CREATE TABLE vendors (guid text(32) PRIMARY KEY Not NULL, name text(2048) Not NULL, id text(2048) Not NULL, notes text(2048) Not NULL, currency text(32) Not NULL, active Integer Not NULL, tax_override Integer Not NULL, addr_name text(1024), addr_addr1 text(1024), addr_addr2 text(1024), addr_addr3 text(1024), addr_addr4 text(1024), addr_phone text(128), addr_fax text(128), addr_email text(256), terms text(32), tax_inc text(2048), tax_table text(32));
+    CREATE TABLE versions (table_name text(50) PRIMARY KEY Not NULL, table_version Integer Not NULL); ";
+
+    empty_database.run(create_table_sql);
+
+    // Create a usd commodity
+    let usd_commodity_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_usd_commodity_sql = &format!(
+        "INSERT INTO commodities({fields}) VALUES('{new_guid}','CURRENCY','USD','US Dollar','840',100,1,'currency','');", 
+        fields=commodities_manager::FIELDS,
+        new_guid=usd_commodity_guid,
+    );
+    empty_database.run(create_usd_commodity_sql);
+    
+    // Create Root Account with information for first commodity
+    let root_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_root_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{root_account_guid}','Root Account',
+                                'ROOT',NULL, 0,0,NULL,'','',0,0);",
+                                fields=accounts_manager::FIELDS,
+                                root_account_guid=root_account_guid,
+    );
+    empty_database.run(create_root_account_sql);
+    
+    // Create Template Root Account
+    let template_root_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_template_root_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{template_root_account_guid}','Template Root',
+                                'ROOT',NULL, 0,0,NULL,'','',0,0);",
+                                fields=accounts_manager::FIELDS,
+                                template_root_account_guid=template_root_account_guid,
+    );
+    empty_database.run(create_template_root_account_sql);                   
+    
+    // Create Assets Account
+    let assets_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_assets_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{assets_account_guid}','Assets',
+                                'ASSET','{usd_commodity_guid}',100,0,'{root_account_guid}',
+                                '','Assets',0,1);  ",
+                                fields=accounts_manager::FIELDS,
+                                assets_account_guid=assets_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                root_account_guid=root_account_guid,
+    );
+    empty_database.run(create_assets_account_sql);
+    
+    // Create Checking Account
+    let checking_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());    
+    let create_checking_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{checking_account_guid}','Checking Account',
+                                'ASSET','{usd_commodity_guid}', 100,0,'{assets_account_guid}',
+                                '','',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                checking_account_guid=checking_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                assets_account_guid=assets_account_guid,
+    );
+    empty_database.run(create_checking_account_sql);
+    
+    // Create Expenses Account
+    let expenses_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_expenses_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{expenses_account_guid}','Expenses',
+                                'EXPENSE','{usd_commodity_guid}', 100,0,'{root_account_guid}',
+                                '','Expenses',0,1);  ",
+                                fields=accounts_manager::FIELDS,
+                                expenses_account_guid=expenses_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                root_account_guid=root_account_guid,
+    );
+    empty_database.run(create_expenses_account_sql);
+    
+    // Create Groceries Account
+    let groceries_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_groceries_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{groceries_account_guid}','Groceries',
+                                'EXPENSE','{usd_commodity_guid}', 100,0,'{expenses_account_guid}',
+                                '','Groceries',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                groceries_account_guid=groceries_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                expenses_account_guid=expenses_account_guid,
+    );
+    empty_database.run(create_groceries_account_sql);
+
+    // Create Dining Account
+    let dining_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_dining_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{dining_account_guid}','Dining',
+                                'EXPENSE','{usd_commodity_guid}', 100,0,'{expenses_account_guid}',
+                                '','Dining',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                dining_account_guid=dining_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                expenses_account_guid=expenses_account_guid,
+    );
+    empty_database.run(create_dining_account_sql);
+
+    // Create Liabilities Account
+    let liabilities_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_liabilities_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{liabilities_account_guid}','Liabilities',
+                                'LIABILITY','{usd_commodity_guid}', 100,0,'{root_account_guid}',
+                                '','Liabilities',0,1);  ",
+                                fields=accounts_manager::FIELDS,
+                                liabilities_account_guid=liabilities_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                root_account_guid=root_account_guid,
+    );
+    empty_database.run(create_liabilities_account_sql);
+
+    // Create Credit Card Account
+    let credit_card_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_credit_card_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{credit_card_account_guid}','Credit Card',
+                                'CREDIT','{usd_commodity_guid}', 100,0,'{liabilities_account_guid}',
+                                '','Credit Card',1,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                credit_card_account_guid=credit_card_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                liabilities_account_guid=liabilities_account_guid,
+    );
+    empty_database.run(create_credit_card_account_sql);
+    
+    // Create Auto Insurance Account
+    let auto_insurance_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_auto_insurance_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{auto_insurance_account_guid}','Auto Insurance',
+                                'EXPENSE','{usd_commodity_guid}', 100,0,'{expenses_account_guid}',
+                                '','Auto Insurance',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                auto_insurance_account_guid=auto_insurance_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                expenses_account_guid=expenses_account_guid,
+    );
+    empty_database.run(create_auto_insurance_account_sql);                   
+    
+    // Create Gasoline Account
+    let gasoline_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_gasoline_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{gasoline_account_guid}','Gasoline',
+                                'EXPENSE','{usd_commodity_guid}', 100,0,'{expenses_account_guid}',
+                                '','Gasoline',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                gasoline_account_guid=gasoline_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                expenses_account_guid=expenses_account_guid,
+    );
+    empty_database.run(create_gasoline_account_sql);
+
+    // Create Income Account
+    let income_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_income_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{income_account_guid}','Income',
+                                'INCOME','{usd_commodity_guid}', 100,0,'{root_account_guid}',
+                                '','Income',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                income_account_guid=income_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                root_account_guid=root_account_guid,
+    );
+    empty_database.run(create_income_account_sql);
+    
+    // Create Salary Income Account
+    let salary_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_salary_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{salary_account_guid}','Salary',
+                                'INCOME','{usd_commodity_guid}', 100,0,'{income_account_guid}',
+                                '','Salary',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                salary_account_guid=salary_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                income_account_guid=income_account_guid,
+    );
+    empty_database.run(create_salary_account_sql);
+    
+    // Create Sales Income Account
+    let sales_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_sales_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{sales_account_guid}','Sales',
+                                'INCOME','{usd_commodity_guid}', 100,0,'{income_account_guid}',
+                                '','Sales',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                sales_account_guid=sales_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                income_account_guid=income_account_guid,
+    );
+    empty_database.run(create_sales_account_sql);                 
+
+    // Create Bonus Income Account
+    let bonus_account_guid = convert_guid_to_sqlite_string(&uuid::Uuid::new_v4());
+    let create_bonus_account_sql = &format!(
+        "INSERT INTO accounts({fields}) VALUES('{bonus_account_guid}','Bonus',
+                                'INCOME','{usd_commodity_guid}', 100,0,'{income_account_guid}',
+                                '','Bonus',0,0);  ",
+                                fields=accounts_manager::FIELDS,
+                                bonus_account_guid=bonus_account_guid,
+                                usd_commodity_guid=usd_commodity_guid,
+                                income_account_guid=income_account_guid,
+    );
+    empty_database.run(create_bonus_account_sql);
+    
+    return empty_database;
+    // let binding_object = JsValue::from_serde(
+    //     &vec!(
+    //             &name,
+    //             &string_val,
+    //         )
+    // ).unwrap();
+    // empty_database.run_with_parameters("DELETE FROM slots WHERE name=? AND string_val=?", 
+    //                                         binding_object);
+    
+}
 // ///convert_string_result_to_guid converts the result to a guid, if possible.
 // pub fn convert_string_result_to_guid(incoming_result : Result<String>) -> Result<GUID> {
 //     //Carefully, unwrap the string, which could be a null
