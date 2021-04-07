@@ -647,8 +647,8 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
             post_date : dhu::convert_date_to_string_format(date_to_use),
             enter_date : dhu::convert_date_to_string_format(date_to_use),
             description : format!("Balance Prior To {}", date_to_use.format("%m/%d/%Y").to_string()),
-            value_num : (accounts[0].tags["balance"].parse::<f64>().unwrap()*1_000_000.0)as i64,
-            value_denom : -1_000_000,
+            value_num : (accounts[0].tags["balance"].parse::<f64>().unwrap() * accounts[0].commodity_scu as f64).round() as i64,
+            value_denom : -1 * accounts[0].commodity_scu, //-1 because this is from the account side which is negative for our current view
             account_name : "".to_string(),
             account_guid : uuid::Uuid::nil(),
             memo : "".to_string(),
@@ -988,6 +988,20 @@ pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::
         change_input.set_placeholder("Amount");
 
         transaction_editor_top_row.append_child(&change_input).expect(&error_message);
+
+        //Setup the enter_transaction handler
+        let change_input_on_input = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+            //let key = event.key().as_str();
+            //let input: web_sys::HtmlInputElement = event.target().unwrap().dyn_into().unwrap();
+            //let value: f32 = input.value().parse().unwrap();
+            //js::alert(&format!("{} is the value",event.key()));
+            if event.key().as_str() == "Enter" {
+                document_query_selector("#enter_transaction_input").click();
+            }
+        }) as Box<dyn FnMut(web_sys::KeyboardEvent)>);
+
+        change_input.set_onkeydown(Some(change_input_on_input.as_ref().unchecked_ref()));
+        change_input_on_input.forget();    
 
     }    
 
