@@ -14,6 +14,19 @@ function downloadme() {
 		};
 		a.click();
 }
+
+function downloadme2() {    
+	var a = document.createElement("a");
+	document.body.appendChild(a);
+	a.href = window.URL.createObjectURL(money_manager.get_database_blob());
+	a.download = "sql.db";
+	a.onclick = function () {
+		setTimeout(function () {
+			window.URL.revokeObjectURL(a.href);
+		}, 1500);
+	};
+	a.click();
+}
 ///load_accounts_from_file loads the accounts for the given file_input type
 // function load_accounts_from_file(file_input) {
 //   var r = new FileReader();

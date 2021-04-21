@@ -1188,6 +1188,22 @@ pub fn get_database_array() -> js_sys::Uint8Array {
     }
 }
 
+/// get_database_array gets you a Uint8Array of the database. Crashes all major browsers.
+/// Currently used to pass data between the web assembly, and the javascript caller.
+#[allow(dead_code)]
+#[wasm_bindgen]
+pub fn get_database_blob() -> web_sys::Blob {
+    unsafe {
+        if crate::DATABASE.len() == 0 {
+            panic!("Please select a database to refresh your accounts view.");
+        }
+        
+        let blob = web_sys::Blob::new_with_u8_array_sequence(&crate::DATABASE[0].export()).unwrap();
+        
+        return blob;
+    }
+}
+
 /// save_database allows the user to save the database to a file. Doesn't currently work in firefox android.
 pub fn save_database() {
     unsafe {
