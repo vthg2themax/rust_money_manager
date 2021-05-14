@@ -60,6 +60,14 @@
 }
 
 /*Specific Account classes*/
+#accounts_div > .body_row > .account_name {
+  width: 21.75vw;
+}
+@media screen and (min-width:800px) {
+  #accounts_div > .body_row > .account_name {
+    width: 22.90vw;
+  }
+}
 #new_account_button {
   margin-bottom: 1vh;
 }
@@ -69,10 +77,10 @@
     max-height: 85vh;
 }
 .account_name {
-    width: 25vw;
+    width: 24vw;
 }
 .account_type {
-    width: 25vw;
+    width: 24vw;
 }
 .account_description {
     width: 25vw;
