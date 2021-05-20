@@ -1,3 +1,6 @@
+body {
+  margin: 1vh 1vw;
+}
 
 #header {
   margin: 1vh 0vh;
@@ -21,14 +24,13 @@
   display: flex;
   flex-direction: row;
   background-color: turquoise;
-  max-width: 98vw;
 }
 
 .body_table {
     display: flex;
     flex-direction: column;
     max-height: 67vh;
-    overflow: scroll;
+    overflow: auto;
     min-height: 67vh;
 }
 
@@ -36,7 +38,6 @@
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    max-width: 98vw;
 }
 
 /*alternating colors*/
