@@ -127,6 +127,12 @@ body {
     text-align:right;
 }
 @media only screen and (min-width: 800px) {
+    .body_table_header > .transaction_post_date {
+        margin-left: 1.1vw;
+    }
+    .body_table_header > .transaction_balance {
+      margin-right: 1.1vw;
+    }
     .transaction_post_date {
         width: 16vw;
         word-wrap: break-word;

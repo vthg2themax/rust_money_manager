@@ -86,6 +86,132 @@ pub fn load_reports_into_body() {
 
 }
 
+/// generate_html_for_report_for_account_type generates an HTML report for the given
+/// dates, and account_type, such as EXPENSE, or INCOME.
+pub fn generate_html_for_report_for_account_type(from_date : chrono::NaiveDateTime,
+                                                    thru_date : chrono::NaiveDateTime,
+                                                    account_type : String) -> String {
+    
+    let report_splits = splits_manager::retrieve_splits_for_dates_report(from_date, 
+                                                                        thru_date, 
+                                                                        account_type.clone());
+    let mut final_html = String::from("");                                                            
+    //Get the categories
+    let mut categories = Vec::<String>::new();    
+
+    for split in &report_splits {
+    let account_name = &split.account_name;
+        if !categories.contains(&account_name) {
+            categories.push(split.account_name.clone());
+        }
+    }
+
+    //sort the categories
+    categories.sort();
+
+    //Next create a hash map with the balance values
+    let mut categories_and_balances = HashMap::<String, f64>::new();
+    for category in &categories {
+        let mut current_balance = 0.00;
+        //Now lets get those balances
+        for split in &report_splits {
+            let split_category = &split.account_name;
+            let split_amount : f64 = split.quantity_num as f64 / split.quantity_denom as f64;
+            if split_category == category {
+                current_balance += split_amount;
+            }
+        }
+
+        categories_and_balances.insert(category.to_string(), current_balance);
+    }
+
+    final_html += "<div style='display:flex;'>";
+    final_html += "<div>";
+    final_html += &format!("{} {}", &account_type.clone(), "Categories");
+    final_html += "<ul>";
+    let mut sorted: Vec<_> = categories_and_balances.iter().collect();
+    sorted.sort_by_key(|a| a.0);
+
+    for category_and_balance in sorted.clone() {
+
+    final_html += &format!("<li>{}:{}</li>",
+                        category_and_balance.0,
+                        dhu::format_money(*category_and_balance.1));
+    }
+
+    final_html += "</ul>";
+    let sum : f64 = categories_and_balances.iter().map(|balance|balance.1).sum();
+    final_html += &format!("Total: {}", dhu::format_money(sum));
+
+    let labels : Vec<String> = sorted.clone().iter()
+            .map(
+                |category|format!("'{}'",&category.0)
+            )
+            .collect::<Vec<String>>();
+
+    let data : Vec<String> = sorted.clone().iter()
+            .map(
+                |balance|format!("{:.2}",&balance.1)
+            )
+            .collect::<Vec<String>>();
+
+    let mut rng = thread_rng();
+    let colors: Vec<String> = sorted.clone().iter()
+            .map(
+                |_x|
+                format!("'rgb({},{},{})'",rng.gen_range(0..=255),rng.gen_range(0..=255),rng.gen_range(0..=255))
+            )
+            .collect::<Vec<String>>();
+
+    final_html += "</div>";
+    final_html += "<div>";
+    final_html += &format!("<canvas id='{}_categories_chart' width='400' height='400'></canvas>",account_type.clone());
+    final_html += r#"<img style="display:none;" src="/" onerror="
+    var ctx = document.querySelector('"#;
+    final_html += &format!("#{}_categories_chart", account_type.clone());
+    final_html += r#"'); 
+    var chart = new Chart(ctx, {
+    // The type of chart we want to create
+    type: 'pie',
+
+    // The data for our dataset
+    data:{
+        'labels':["#;
+    final_html +=             &labels.join(",");
+    final_html +=                                r#"],
+        'datasets':[{
+                'label':'My First Dataset',
+                'data':["#;
+    final_html +=                  &data.join(",");
+    final_html +=                                r#"],
+                'backgroundColor':["#;
+    final_html +=                              &colors.join(",");                        
+    final_html +=                                                 r#"]
+        }]
+    },
+
+    // Configuration options go here
+    options: {}
+    });
+    "#;
+
+    final_html+= r#"" />"#;
+    final_html += "</div>";
+    final_html += "</div>";
+
+    final_html += "Transactions List";
+    final_html += "<ul>";
+    for split in &report_splits {
+        let split_amount : f64 = split.quantity_num as f64 / split.quantity_denom as f64;
+        let split_amount = dhu::format_money(split_amount);
+        final_html += &format!("<li>{}:{}</li>",split.account_name,split_amount);
+    }
+
+    final_html += "</ul>";
+
+    return final_html;
+}
+
 /// display_last_30_days_report displays the last 30 days worth of data in a nice
 /// format.
 pub fn display_last_30_days_report() {
@@ -108,126 +234,13 @@ pub fn display_last_30_days_report() {
             NaiveTime::from_hms_milli(0, 0, 0, 000)
     );
 
-    let report_splits = splits_manager::retrieve_splits_for_dates_report(from_date, 
-                                                                        thru_date, 
-                                                                        String::from("EXPENSE"));
-                                                                        
-
     let mut final_html = String::from("");
 
-    //Get the categories
-    let mut categories = Vec::<String>::new();    
-    
-    for split in &report_splits {
-        let account_name = &split.account_name;
-        if !categories.contains(&account_name) {
-            categories.push(split.account_name.clone());
-        }
-    }
+    //First setup the Expenses Report Part
+    final_html += &generate_html_for_report_for_account_type(from_date, thru_date, String::from("EXPENSE"));
 
-    //sort the categories
-    categories.sort();
-
-    //Next create a hash map with the balance values
-    let mut categories_and_balances = HashMap::<String, f64>::new();
-    for category in &categories {
-        let mut current_balance = 0.00;
-        //Now lets get those balances
-        for split in &report_splits {
-            let split_category = &split.account_name;
-            let split_amount : f64 = split.quantity_num as f64 / split.quantity_denom as f64;
-            if split_category == category {
-                current_balance += split_amount;
-            }
-        }
-        
-        categories_and_balances.insert(category.to_string(), current_balance);
-    }
-    
-    final_html += "<div style='display:flex;'>";
-    final_html += "<div>";
-    final_html += "Categories";
-    final_html += "<ul>";
-    let mut sorted: Vec<_> = categories_and_balances.iter().collect();
-    sorted.sort_by_key(|a| a.0);
-    
-    for category_and_balance in sorted.clone() {
-        
-        final_html += &format!("<li>{}:{}</li>",
-                                category_and_balance.0,
-                                dhu::format_money(*category_and_balance.1));
-
-    }
-
-    final_html += "</ul>";
-    let sum : f64 = categories_and_balances.iter().map(|balance|balance.1).sum();
-    final_html += &format!("Total: {}", dhu::format_money(sum));
-
-    let labels : Vec<String> = sorted.clone().iter()
-                    .map(
-                        |category|format!("'{}'",&category.0)
-                    )
-                    .collect::<Vec<String>>();
-
-    let data : Vec<String> = sorted.clone().iter()
-                    .map(
-                        |balance|format!("{:.2}",&balance.1)
-                    )
-                    .collect::<Vec<String>>();
-    
-    let mut rng = thread_rng();
-    let colors: Vec<String> = sorted.clone().iter()
-                    .map(
-                        |_x|
-                        format!("'rgb({},{},{})'",rng.gen_range(0..=255),rng.gen_range(0..=255),rng.gen_range(0..=255))
-                    )
-                    .collect::<Vec<String>>();
-
-    final_html += "</div>";
-    final_html += "<div>";
-    final_html += "<canvas id='categories_chart' width='400' height='400'></canvas>";
-    final_html += r#"<img style="display:none;" src="/" onerror="
-        var ctx = document.querySelector('#categories_chart');
-        var chart = new Chart(ctx, {
-            // The type of chart we want to create
-            type: 'pie',
-        
-            // The data for our dataset
-            data:{
-                'labels':["#;
-    final_html +=             &labels.join(",");
-    final_html +=                                r#"],
-                'datasets':[{
-                        'label':'My First Dataset',
-                        'data':["#;
-    final_html +=                  &data.join(",");
-    final_html +=                                r#"],
-                        'backgroundColor':["#;
-    final_html +=                              &colors.join(",");                        
-    final_html +=                                                 r#"]
-                }]
-            },
-        
-            // Configuration options go here
-            options: {}
-        });
-    "#;
-
-
-
-    final_html+= r#"" />"#;
-    final_html += "</div>";
-    final_html += "</div>";
-
-    final_html += "Transactions List";
-    final_html += "<ul>";
-    for split in &report_splits {
-        let split_amount : f64 = split.quantity_num as f64 / split.quantity_denom as f64;
-        let split_amount = dhu::format_money(split_amount);
-        final_html += &format!("<li>{}:{}</li>",split.account_name,split_amount);
-    }
-
-    final_html += "</ul>";
+    //Next we setup the Income Report Part
+    final_html += &generate_html_for_report_for_account_type(from_date, thru_date, String::from("INCOME"));
 
     body_div.set_inner_html(&final_html);
 }
