@@ -1100,6 +1100,9 @@ pub fn enter_transaction_on_click() {
     let change_input = document_query_selector("#change_input")
                             .dyn_into::<web_sys::HtmlInputElement>().expect("Failed to dyn_into #change_input");
     
+    change_input.set_value(&change_input.value().replace(" ",""));
+    change_input.set_value(&change_input.value().replace("$",""));    
+
     match change_input.value().parse::<f64>() {
         Ok(_result) => {
             //we're good!
