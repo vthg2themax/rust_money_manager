@@ -1,6 +1,6 @@
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use wasm_bindgen::prelude::*;
+
 
 use crate::utility::js_helper_utility as js;
 use crate::utility::sql_helper_utility as shu;
@@ -38,7 +38,7 @@ pub fn retrieve_splits_for_dates_report(from_date: chrono::NaiveDateTime,
             let stmt = crate::DATABASE[0].prepare(&shu::load_splits_for_last_30_day_report());
     
             
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!( &from_date.format("%Y-%m-%d 00:00:00").to_string(),
                        &thru_date.format("%Y-%m-%d 23:59:59").to_string(),
                        &incoming_account_type,
@@ -51,7 +51,7 @@ pub fn retrieve_splits_for_dates_report(from_date: chrono::NaiveDateTime,
                 let row = stmt.getAsObject();
                 js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
-                let split : SplitWithTransactionInformation = row.clone().into_serde().unwrap();
+                let split : SplitWithTransactionInformation = serde_wasm_bindgen::from_value(row.clone()).unwrap();
                     
                 splits.push(split);
             }

@@ -1,9 +1,8 @@
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use wasm_bindgen::prelude::*;
 
-use crate::utility::database_helper_utility as dhu;
-use crate::utility::js_helper_utility as js;
+
+use crate::utility::{database_helper_utility as dhu, js_helper_utility as js};
 use crate::utility::sql_helper_utility as shu;
 
 pub const SLOT_NAME_NOTES : &str = "notes";
@@ -57,7 +56,7 @@ pub fn save_slot_for_name_and_string_val_and_int64_val(name: String, string_val:
         {
             
             //Delete the slot record
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &name,
                         &string_val,
@@ -81,7 +80,7 @@ pub fn save_slot_for_name_and_string_val_and_int64_val(name: String, string_val:
                 numeric_val_denom: Some(1), //numeric_val_denom is the denom 1 by default.
                 gdate_val: None, //gdate_val is a null value that could eventually be used
             };
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()), //obj_guid
                         &slot.name,//name
@@ -115,7 +114,7 @@ pub fn load_slots_for_name(name: String) -> Result<Vec<Slot>,String> {
         //Prepare a statement
         let stmt = crate::DATABASE[0].prepare(&shu::load_slots_for_name());
 
-        let binding_object = JsValue::from_serde(
+        let binding_object =serde_wasm_bindgen::to_value(
             &vec!(
                     name
                 )
@@ -129,7 +128,7 @@ pub fn load_slots_for_name(name: String) -> Result<Vec<Slot>,String> {
             let row = stmt.getAsObject();
             //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let slot : Slot = row.clone().into_serde().unwrap();
+            let slot : Slot = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             slots.push(slot);
         }
@@ -150,7 +149,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
         //Prepare a statement
         let stmt = crate::DATABASE[0].prepare(&shu::load_slots_for_name_and_string_val());
 
-        let binding_object = JsValue::from_serde(
+        let binding_object =serde_wasm_bindgen::to_value(
             &vec!(
                     name,
                     string_val,
@@ -165,7 +164,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let slot : Slot = row.clone().into_serde().unwrap();
+            let slot : Slot = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             slots.push(slot);
         }

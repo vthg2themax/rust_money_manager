@@ -1,7 +1,9 @@
-/// html_helper_utility will be all the functions that have to do with HTML output to the form.
-/// The only reason something should be here is if it outputs HTML to the form, so this could
-/// be from a database call, or whatever, but it should be displayed to the end user.
-/// Every one of these call should set the #footer, and #body to nothing first.
+/**
+html_helper_utility will be all the functions that have to do with HTML output to the form.
+The only reason something should be here is if it outputs HTML to the form, so this could
+be from a database call, or whatever, but it should be displayed to the end user.
+Every one of these call should set the #footer, and #body to nothing first.
+*/
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -9,6 +11,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use crate::database_tables::*;
+use crate::database_tables::accounts_manager::Account;
 use crate::utility::js_helper_utility as js;
 use crate::utility::database_helper_utility as dhu;
 use crate::utility::sql_helper_utility as shu;
@@ -224,14 +227,14 @@ pub fn display_last_30_days_report() {
     //Get the date we want to limit results to start at 30 days so far
     let from_date = chrono::NaiveDateTime::new(
         Local::now().naive_local().date() + Duration::days(-30),
-        NaiveTime::from_hms_milli(0, 0, 0, 000)
+        NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap()
     );
 
-    let thru_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd
+    let thru_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd_opt
         (Local::now().naive_local().date().year(),
         Local::now().naive_local().date().month(),
-        Local::now().naive_local().date().day()), 
-            NaiveTime::from_hms_milli(0, 0, 0, 000)
+        Local::now().naive_local().date().day()).unwrap(), 
+            NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap()
     );
 
     let mut final_html = String::from("");
@@ -359,7 +362,7 @@ pub fn load_accounts_with_balances_from_memory() {
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
+            let mut account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
             let tags : serde_json::Value = serde_json::from_str(                                    
                                                 js::stringify(row.clone()).as_str()                                    
                                             ).unwrap();
@@ -478,11 +481,11 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
         }
 
         //Get the date we want to limit results to, which is the the max SQLite Date value
-        let date_to_use = chrono::NaiveDateTime::new(NaiveDate::from_ymd
+        let date_to_use = chrono::NaiveDateTime::new(NaiveDate::from_ymd_opt
                             (9999,
                             12,
-                            31), 
-                        NaiveTime::from_hms_milli(23, 59, 59, 999)
+                            31).unwrap(),
+                        NaiveTime::from_hms_milli_opt(23, 59, 59, 999).unwrap()
         );
 
         //Get the balance, and account information for the previous year
@@ -490,7 +493,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
         {
             let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_guid());
     
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                     &account_guid)
             ).unwrap();
@@ -501,7 +504,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
                 let row = stmt.getAsObject();
                 js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
-                let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
+                let mut account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
                 let tags : serde_json::Value = serde_json::from_str(                                    
                                                     js::stringify(row.clone()).as_str()                                    
                                                 ).unwrap();
@@ -537,7 +540,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
         {
             let stmt = crate::DATABASE[0].prepare(&shu::load_transactions_for_account());
                 
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                     &account_guid,
                     &account_guid,
@@ -552,7 +555,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
                 let row = stmt.getAsObject();
                 js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
-                let txn : transactions_manager::TransactionWithSplitInformation = row.clone().into_serde().unwrap();
+                let txn : transactions_manager::TransactionWithSplitInformation = serde_wasm_bindgen::from_value(row.clone()).unwrap();
                     
                 transactions_with_splits.push(txn);
             }
@@ -596,11 +599,11 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
         }
 
         //Get the date we want to limit results to start at 1 year so far
-        let date_to_use = chrono::NaiveDateTime::new(NaiveDate::from_ymd
+        let date_to_use = chrono::NaiveDateTime::new(NaiveDate::from_ymd_opt
                             (Local::now().naive_local().date().year()-1,
                             Local::now().naive_local().date().month(),
-                            Local::now().naive_local().date().day()), 
-                        NaiveTime::from_hms_milli(0, 0, 0, 000)
+                            Local::now().naive_local().date().day()).unwrap(), 
+                        NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap()
         );
 
         //Get the balance, and account information for the previous year
@@ -608,7 +611,7 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
         {
             let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_date_and_guid());
     
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(&date_to_use.format("%Y-%m-%d 00:00:00").to_string(), &account_guid)
             ).unwrap();
     
@@ -617,8 +620,9 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
             while stmt.step() {
                 let row = stmt.getAsObject();
                 js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
-    
-                let mut account : accounts_manager::Account = row.clone().into_serde().unwrap();
+                
+                let mut account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
+
                 let tags : serde_json::Value = serde_json::from_str(                                    
                                                     js::stringify(row.clone()).as_str()                                    
                                                 ).unwrap();
@@ -672,25 +676,25 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
         {
             let stmt = crate::DATABASE[0].prepare(&shu::load_transactions_for_account_between_dates());
     
-            let from_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd
+            let from_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd_opt
                                                             (Local::now().naive_local().date().year()-1,
                                                             Local::now().naive_local().date().month(),
-                                                            Local::now().naive_local().date().day()), 
-                                                        NaiveTime::from_hms_milli(0, 0, 0, 000)
+                                                            Local::now().naive_local().date().day()).unwrap(), 
+                                                        NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap()
             );
 
             let from_date = from_date.format("%Y-%m-%d 00:00:00").to_string();
     
-            let thru_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd
+            let thru_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd_opt
                                                             (9999,
                                                             12,
-                                                            31), 
-                                                        NaiveTime::from_hms_milli(23, 59, 59, 999)
+                                                            31).unwrap(), 
+                                                        NaiveTime::from_hms_milli_opt(23, 59, 59, 999).unwrap()
             );
 
             let thru_date = thru_date.format("%Y-%m-%d 23:59:59").to_string();
 
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(&account_guid,&account_guid,&account_guid,&account_guid,
                     &from_date, &thru_date)
             ).unwrap();
@@ -701,7 +705,7 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
                 let row = stmt.getAsObject();
                 js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
-                let txn : transactions_manager::TransactionWithSplitInformation = row.clone().into_serde().unwrap();
+                let txn : transactions_manager::TransactionWithSplitInformation = serde_wasm_bindgen::from_value(row.clone()).unwrap();
                     
                 transactions_with_splits.push(txn);
             }
@@ -1100,8 +1104,11 @@ pub fn enter_transaction_on_click() {
     let change_input = document_query_selector("#change_input")
                             .dyn_into::<web_sys::HtmlInputElement>().expect("Failed to dyn_into #change_input");
     
+    //Clear out some spaces, dollar signs, and commas
     change_input.set_value(&change_input.value().replace(" ",""));
-    change_input.set_value(&change_input.value().replace("$",""));    
+    change_input.set_value(&change_input.value().replace("$",""));
+    change_input.set_value(&change_input.value().replace(",",""));
+    change_input.set_value(&change_input.value().trim());
 
     match change_input.value().parse::<f64>() {
         Ok(_result) => {
@@ -1457,8 +1464,8 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
                 e
             },
             Err(_ex) => {
-                NaiveDateTime::new(NaiveDate::from_ymd(0,1,1),
-                                    NaiveTime::from_hms(0,0,0)
+                NaiveDateTime::new(NaiveDate::from_ymd_opt(0,1,1).unwrap(),
+                                    NaiveTime::from_hms_opt(0,0,0).unwrap()
                                 )
             }
         };
@@ -1580,7 +1587,7 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
 pub fn load_account_editor_into_body(account_guid : Uuid) {
     //Check for the account with a given account guid
     let result = accounts_manager::retrieve_account_for_guid(account_guid);
-    let mut account = accounts_manager::Account {
+    let mut account = Account {
         guid: account_guid, //guid is the GUID for this account.
         name: "".to_string(), //Name is the name of the account.
         account_type: accounts_manager::AccountType::ASSET, //Account_Type is the account type. (Ex: 'ROOT' or 'CREDIT')
@@ -1853,7 +1860,7 @@ pub fn save_account_with_guid(account_guid : Uuid) {
             accounts_manager::AccountType::RECEIVABLE
         },
         _ => {
-            panic!(format!("The option {} is not valid!", option.value()));
+            panic!("The option {} is not valid!", option.value());
         },
     };
     
@@ -1888,7 +1895,7 @@ pub fn save_account_with_guid(account_guid : Uuid) {
 
     let parent_guid = accounts_manager::retrieve_account_for_account_type(account_type.to_string()).unwrap().guid;
 
-    let account_to_save = accounts_manager::Account {
+    let account_to_save = Account {
         guid: account_guid,
         name: account_name,
         account_type: account_type, //Account_Type is the account type. (Ex: 'ROOT' or 'CREDIT')
@@ -1930,7 +1937,7 @@ pub fn save_account_with_guid(account_guid : Uuid) {
 }
 
 /// load_accounts_into_body loads the accounts into the body.
-pub fn load_accounts_into_body(accounts : Vec<accounts_manager::Account>) {
+pub fn load_accounts_into_body(accounts : Vec<Account>) {
     
     //Clear out the body, and footer first    
     let body_div = document_query_selector("#body");

@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use wasm_bindgen::prelude::*;
+
 use std::collections::HashMap;
 use uuid::Uuid;
 use crate::utility::database_helper_utility as dhu;
@@ -101,7 +101,7 @@ pub fn save_new_and_delete_current(account : Account) -> Result<bool,String> {
 
         {            
             //Delete the Account Record first
-            let binding_object = JsValue::from_serde(
+            let binding_object = serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&account.guid),
                     )
@@ -109,7 +109,7 @@ pub fn save_new_and_delete_current(account : Account) -> Result<bool,String> {
             crate::DATABASE[0].run_with_parameters("DELETE FROM Accounts WHERE guid=?", binding_object);
                         
             //Insert The Account Record
-            let binding_object = JsValue::from_serde(
+            let binding_object = serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&account.guid),
                         &account.name,
@@ -190,7 +190,7 @@ pub fn retrieve_account_for_account_type(account_type : String) -> Result<Accoun
             parent_guid IN (SELECT guid FROM accounts WHERE name = 'Liabilities') 
         )");
     
-        let binding_object = JsValue::from_serde(
+        let binding_object = serde_wasm_bindgen::to_value(
             &vec!(
                     account_type,
                 )
@@ -204,7 +204,7 @@ pub fn retrieve_account_for_account_type(account_type : String) -> Result<Accoun
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let account : Account = row.clone().into_serde().unwrap();
+            let account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             accounts.push(account);
         }
@@ -230,7 +230,7 @@ pub fn retrieve_account_for_guid(account_guid : Uuid) -> Result<Account, String>
         //Prepare a statement
         let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_date_and_guid());
     
-        let binding_object = JsValue::from_serde(
+        let binding_object = serde_wasm_bindgen::to_value(
             &vec!(&dhu::convert_date_to_string_format(chrono::Local::now().naive_local()),
                     &dhu::convert_guid_to_sqlite_string(&account_guid),
                 )
@@ -244,7 +244,7 @@ pub fn retrieve_account_for_guid(account_guid : Uuid) -> Result<Account, String>
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let account : Account = row.clone().into_serde().unwrap();
+            let account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             accounts.push(account);
         }
@@ -270,7 +270,7 @@ pub fn load_account_for_guid(account_guid : Uuid) -> Account {
         //Prepare a statement
         let stmt = crate::DATABASE[0].prepare(&shu::load_account_with_balance_for_date_and_guid());
     
-        let binding_object = JsValue::from_serde(
+        let binding_object = serde_wasm_bindgen::to_value(
             &vec!(&dhu::convert_date_to_string_format(chrono::Local::now().naive_local()),
                     &dhu::convert_guid_to_sqlite_string(&account_guid),
                 )
@@ -284,7 +284,7 @@ pub fn load_account_for_guid(account_guid : Uuid) -> Account {
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let account : Account = row.clone().into_serde().unwrap();
+            let account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             accounts.push(account);
         }
@@ -312,7 +312,7 @@ pub fn load_all_accounts_except_root_and_template_from_memory() -> Vec<Account> 
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let account : Account = row.clone().into_serde().unwrap();
+            let account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             accounts.push(account);
         }

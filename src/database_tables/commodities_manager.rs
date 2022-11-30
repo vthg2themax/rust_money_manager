@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use wasm_bindgen::prelude::*;
+
 use uuid::Uuid;
 
 use crate::utility::database_helper_utility as dhu;
@@ -39,7 +39,7 @@ pub fn retrieve_all_commodities() -> Vec<Commodity> {
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let commodity : Commodity = row.clone().into_serde().unwrap();
+            let commodity : Commodity = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             commodities.push(commodity);
         }
@@ -62,7 +62,7 @@ pub fn retrieve_commodity_for_guid(commodity_guid : Uuid) -> Commodity {
         //Prepare a statement
         let stmt = crate::DATABASE[0].prepare(&shu::load_commodity_for_guid());
     
-        let binding_object = JsValue::from_serde(
+        let binding_object = serde_wasm_bindgen::to_value(
             &vec!(
                     &dhu::convert_guid_to_sqlite_string(&commodity_guid),
                 )
@@ -76,7 +76,7 @@ pub fn retrieve_commodity_for_guid(commodity_guid : Uuid) -> Commodity {
             let row = stmt.getAsObject();
             js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let commodity : Commodity = row.clone().into_serde().unwrap();
+            let commodity : Commodity = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
             commodities.push(commodity);
         }

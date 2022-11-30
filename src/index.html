@@ -5,7 +5,7 @@
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
     <link rel="stylesheet" href="/css/app.css">
     <script src="/scripts/app.js"></script>
-    <script src="/scripts/sql.js/1.50/sql-wasm.js"></script>
+    <script src="/scripts/sql.js/1.80/sql-wasm.js"></script>
     <script src="/scripts/chart.js/3.3.2/chart.min.js"></script>
 
     <!-- Note the usage of `type=module` here as this is an ES6 module -->
@@ -21,7 +21,7 @@
         //chain load sqlite library next, by first getting a config setup
         var config = {
           locateFile: (filename, prefix) => {
-            return `scripts/sql.js/1.50/${filename}`;
+            return `scripts/sql.js/1.80/${filename}`;
           }
         };
 

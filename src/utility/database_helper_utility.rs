@@ -341,7 +341,7 @@ pub fn create_default_database_tables(empty_database: Database) -> Database {
     empty_database.run(create_bonus_account_sql);
     
     return empty_database;
-    // let binding_object = JsValue::from_serde(
+    // let binding_object =serde_wasm_bindgen::to_value(
     //     &vec!(
     //             &name,
     //             &string_val,
@@ -450,7 +450,7 @@ pub fn convert_date_to_string_format(incoming_date : chrono::NaiveDateTime ) -> 
 /// null_date is the null value for a date which is currently 
 /// a NaiveDateTime 1/1/00 00:00:00
 pub fn null_date() -> chrono::NaiveDateTime {
-    NaiveDate::from_ymd(0, 1, 1).and_hms(0,0,0)
+    NaiveDate::from_ymd_opt(0, 1, 1).unwrap().and_hms_opt(0,0,0).unwrap()
 }
 
 ///convert_string_to_date_format attempts to convert a string to the sqlite

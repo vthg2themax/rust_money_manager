@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use wasm_bindgen::prelude::*;
+
 
 use uuid::Uuid;
 // use chrono::prelude::*;
@@ -116,7 +116,7 @@ pub fn delete_transaction(transaction_guid : Uuid) -> Result<bool,String> {
         {
             
             //Delete the Transaction Records, and the associated records first
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&transaction_guid),
                     )
@@ -124,7 +124,7 @@ pub fn delete_transaction(transaction_guid : Uuid) -> Result<bool,String> {
             crate::DATABASE[0].run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
             
             //Delete the Split records
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&transaction_guid),
                     )
@@ -132,7 +132,7 @@ pub fn delete_transaction(transaction_guid : Uuid) -> Result<bool,String> {
             crate::DATABASE[0].run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
             
             //Delete the Slot record(s) for this transaction
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&transaction_guid),
                     )
@@ -160,7 +160,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
         {
             
             //Delete the Transaction Records, and the associated records first
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&txn.guid),
                     )
@@ -168,7 +168,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
             crate::DATABASE[0].run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
             
             //Delete the Split records
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&txn.guid),
                     )
@@ -176,7 +176,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
             crate::DATABASE[0].run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
             
             //Delete the Slot record(s) for this transaction
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&txn.guid),
                     )
@@ -184,7 +184,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
             crate::DATABASE[0].run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
 
             //Insert The Transaction Record
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&txn.guid), //guid
                         &dhu::convert_guid_to_sqlite_string(&txn.currency_guid),//currency_guid
@@ -201,7 +201,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
                                             ?,    ?,           ?,  ?,        ?,         ?) ", binding_object);
             js::log(&format!("Transaction GUID '{}'",txn.guid));
             //Create the Split to subtract from the From Account
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()),//guid
                         &dhu::convert_guid_to_sqlite_string(&txn.guid),//tx_guid
@@ -221,7 +221,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
                                     ?,        ?,          ?,           ?,             NULL)", binding_object);
                                 
             //Create the other Split to add to the To Account
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(
                         &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()),//guid
                         &dhu::convert_guid_to_sqlite_string(&txn.guid),//tx_guid
@@ -242,7 +242,7 @@ pub fn save_transaction(txn : TransactionWithSplitInformation) -> Result<bool,St
             
             if txn.memo.trim() != "" {
                 //Create a notes slot for this transaction
-                let binding_object = JsValue::from_serde(
+                let binding_object =serde_wasm_bindgen::to_value(
                     &vec!(
                             &dhu::convert_guid_to_sqlite_string(&txn.guid), //obj_guid
                             &slots_manager::SLOT_NAME_NOTES.to_string(), //name
@@ -280,7 +280,7 @@ pub fn retrieve_transaction_with_split_information_for_account_guid_and_descript
         {
             let stmt = crate::DATABASE[0].prepare(&shu::load_transaction_for_account_guid_and_description());
     
-            let binding_object = JsValue::from_serde(
+            let binding_object =serde_wasm_bindgen::to_value(
                 &vec!(&dhu::convert_guid_to_sqlite_string(&account_guid),
                         &dhu::convert_guid_to_sqlite_string(&account_guid),
                         &dhu::convert_guid_to_sqlite_string(&account_guid),
@@ -296,7 +296,7 @@ pub fn retrieve_transaction_with_split_information_for_account_guid_and_descript
                 let row = stmt.getAsObject();
                 //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
-                let txn : TransactionWithSplitInformation = row.clone().into_serde().unwrap();
+                let txn : TransactionWithSplitInformation = serde_wasm_bindgen::from_value(row.clone()).unwrap();
                     
                 transaction_with_split.push(txn);
             }
