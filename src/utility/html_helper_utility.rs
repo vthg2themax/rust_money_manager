@@ -7,6 +7,7 @@ Every one of these call should set the #footer, and #body to nothing first.
 use std::collections::HashMap;
 use std::convert::TryInto;
 
+use base64::{Engine as _, engine::general_purpose};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -279,7 +280,8 @@ pub fn load_settings_into_body(settings_slots : Vec<slots_manager::Slot>) {
             let empty_database = dhu::Database::new_empty();
             let filled_database = dhu::create_default_database_tables(empty_database);
             let blob = filled_database.export();
-            let b64 = base64::encode(blob.to_vec());
+
+            let b64 = general_purpose::STANDARD_NO_PAD.encode(blob.to_vec());
 
             let body = document_query_selector("#body");
             let div = document_create_element("div");
@@ -1235,7 +1237,7 @@ pub fn save_database() {
             return;
         }
         let blob = crate::DATABASE[0].export();
-        let b64 = base64::encode(blob.to_vec());
+        let b64 = general_purpose::STANDARD_NO_PAD.encode(blob.to_vec());
 
         let filename = document_query_selector("#money_manager_filename_input")
                                         .dyn_into::<web_sys::HtmlInputElement>()
@@ -2024,7 +2026,7 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
 
         account_div.append_child(&account_link).expect("Failed to append account_link to account_div!");
         
-        //Setup the account_link handler
+        //Setup the account_link handlers
         let account_link_on_click = Closure::wrap(Box::new(move || {
             show_loading_message("Please wait while your transactions are loaded...".to_string());
             let account_link = document_query_selector(&format!("#{}",&account_guid_selector));
@@ -2035,7 +2037,9 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
             }
         }) as Box<dyn Fn()>);
         
+        account_div.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));        
         account_link.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));
+        
         account_link_on_click.forget();
 
         //Setup the account type, and place it inside the account div
