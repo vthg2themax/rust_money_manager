@@ -362,7 +362,7 @@ pub fn load_accounts_with_balances_from_memory() {
 
         while stmt.step() {
             let row = stmt.getAsObject();
-            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+            //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
             let mut account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
             let tags : serde_json::Value = serde_json::from_str(                                    
@@ -468,13 +468,10 @@ pub fn load_accounts_with_balances_into_memory(file_input : web_sys::HtmlInputEl
 }
 
 /// load_transactions_for_account_into_body_for_all_time loads the transactions for the given account 
-/// element from the beginning of time into the body of the form for display
-pub fn load_transactions_for_account_into_body_for_all_time(account_element : web_sys::HtmlElement) {
+/// guid from the beginning of time into the body of the form for display
+pub fn load_transactions_for_account_into_body_for_all_time(account_guid : String) {
     
-    //First try to get the guid from the dataset, otherwise the value
-    let account_guid = account_element.dataset().get("guid").expect("Expected GUID!");
-
-    js::log(&format!("The next step is to load the transactions for account with guid:{}",account_guid));
+    //js::log(&format!("The next step is to load the transactions for account with guid:{}",account_guid));
 
     unsafe {
         if crate::DATABASE.len() == 0 {
@@ -504,7 +501,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
     
             while stmt.step() {
                 let row = stmt.getAsObject();
-                js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+                //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
                 let mut account : Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
                 let tags : serde_json::Value = serde_json::from_str(                                    
@@ -555,7 +552,7 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
     
             while stmt.step() {
                 let row = stmt.getAsObject();
-                js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+                //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
     
                 let txn : transactions_manager::TransactionWithSplitInformation = serde_wasm_bindgen::from_value(row.clone()).unwrap();
                     
@@ -586,13 +583,10 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_element : we
 }
 
 /// load_transactions_for_account_into_body_for_one_year_from_memory loads the transactions for the 
-/// given account element for the last year into the body of the form for display.
-pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_element : web_sys::HtmlElement) {
-    
-    //First try to get the guid from the dataset, otherwise the value
-    let account_guid = account_element.dataset().get("guid").expect("Expected GUID!");
+/// given account_guid for the last year into the body of the form for display.
+pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_guid : String) {    
 
-    js::log(&format!("The next step is to load the transactions for account with guid:{}",account_guid));
+    //js::log(&format!("The next step is to load the transactions for account with guid:{}",account_guid));
 
     unsafe {
         if crate::DATABASE.len() == 0 {
@@ -945,7 +939,9 @@ pub fn display_transactions_older_than_one_year() -> bool {
 }
 
 /// document_create_transaction_editor creates the transaction editor as a div.
-pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::Uuid, transactions_to_prefill_description_with : Vec<transactions_manager::TransactionWithSplitInformation>) -> web_sys::HtmlElement {
+pub fn document_create_transaction_editor(account_guid_currently_loaded : uuid::Uuid, 
+                                          transactions_to_prefill_description_with : Vec<transactions_manager::TransactionWithSplitInformation>
+                                         ) -> web_sys::HtmlElement {
     let error_message : String = String::from("was not able to create transaction editor!");
 
     let transaction_editor_div = document_create_element("div");
@@ -1182,9 +1178,13 @@ pub fn enter_transaction_on_click() {
             let account_element = document_query_selector("#currently_loaded_account_guid");
             
             if display_transactions_older_than_one_year() {
-                load_transactions_for_account_into_body_for_all_time(account_element);
+                load_transactions_for_account_into_body_for_all_time(
+                    account_element.dataset().get("guid").expect("Account not found for guid.")
+                );
             } else {
-                load_transactions_for_account_into_body_for_one_year_from_memory(account_element);
+                load_transactions_for_account_into_body_for_one_year_from_memory(
+                    account_element.dataset().get("guid").expect("Account not found for guid.")
+                );
             }                        
             
             //Clear the transaction editor now
@@ -1373,6 +1373,16 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
     let footer_div = document_query_selector("#footer");
     footer_div.set_inner_html("");
 
+    let account_header_div = document_create_element("div");
+    account_header_div.set_id("account_header_div");
+    account_header_div.set_inner_html(
+        &format!(
+            "Transactions for Account: {}<br>",
+            dhu::sanitize_string(transactions_with_splits[0].clone().excluded_account_name)
+        )
+    );
+    body_div.append_child(&account_header_div).expect("Failed to append account_header_div to transactions_div!");
+
     //Create the transactions header first
     {
         let headers = vec!("Post Date".to_string(),
@@ -1407,7 +1417,7 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
         //Setup the transaction delete link, and place it inside the transactions div
         let delete_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();        
         delete_link.set_inner_html("<img src='/css/fontawesome-free-5.15.3-desktop/svgs/regular/trash-alt.svg' />");
-        delete_link.set_href("#");
+        delete_link.set_href("javascript:void(0);");
         delete_link.set_id(&txn_guid_selector);
         delete_link.dataset().set("guid", 
                                 &dhu::convert_guid_to_sqlite_string(&txn.guid))
@@ -1436,9 +1446,13 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
                         let account_element = document_query_selector("#currently_loaded_account_guid");
                         
                         if display_transactions_older_than_one_year() {
-                            load_transactions_for_account_into_body_for_all_time(account_element);
+                            load_transactions_for_account_into_body_for_all_time(
+                                account_element.dataset().get("guid").expect("Failed to find account for given guid.")
+                            );
                         } else {
-                            load_transactions_for_account_into_body_for_one_year_from_memory(account_element);
+                            load_transactions_for_account_into_body_for_one_year_from_memory(
+                                account_element.dataset().get("guid").expect("Failed to find account for given guid.")
+                            );
                         }                        
                         
                         //Clear the transaction editor now
@@ -1486,7 +1500,7 @@ pub fn load_transactions_into_body(transactions_with_splits : Vec<transactions_m
         let txn_memo : String = String::from(&txn.memo.clone());
         if txn_memo != "" {
             //Setup the transaction memo, and place it as a hyperlink for the description
-            txn_description.set_href("#");
+            txn_description.set_href("javascript:void(0);");
             let txn_description_on_click = Closure::wrap(Box::new(move || {
                 let memo = dhu::sanitize_string(txn_memo.clone());
                 js::alert(&memo);
@@ -1993,6 +2007,7 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
 
         //Setup the account_guid
         let account_guid = account.clone().guid;
+        let account_guid_string = dhu::convert_guid_to_sqlite_string(&account_guid);
 
         //Create account div
         let account_div = document_create_element("div");
@@ -2002,7 +2017,7 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
 
         //Setup the accounts edit link, and place it inside the accounts div
         let edit_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
-        edit_link.set_href("#");
+        edit_link.set_href("javascript:void(0);");
         edit_link.set_inner_html("<img src='/css/fontawesome-free-5.15.3-desktop/svgs/regular/edit.svg' />");
         edit_link.class_list().add_1("edit").expect("Failed to add class to element!");
         account_div.append_child(&edit_link).expect("Failed to append edit_link!");
@@ -2016,11 +2031,11 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
 
         //Setup the account link, and place it inside the accounts div
         let account_link = document_create_element("a").dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
-        account_link.set_text_content(Some(&format!("{}",&account.name)));
-        account_link.set_href("#");
+        account_link.set_text_content(Some(&format!("{}",&account.clone().name)));
+        account_link.set_href("javascript:void(0);");
         account_link.set_id(&account_guid_selector);
         account_link.dataset().set("guid", 
-                                    &dhu::convert_guid_to_sqlite_string(&account.guid))
+                                    &dhu::convert_guid_to_sqlite_string(&account_guid))
                                     .expect("Failed to set dataset's account.guid!");
         account_link.class_list().add_1("account_name").expect("Failed to add class to element.");
 
@@ -2029,15 +2044,14 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
         //Setup the account_link handlers
         let account_link_on_click = Closure::wrap(Box::new(move || {
             show_loading_message("Please wait while your transactions are loaded...".to_string());
-            let account_link = document_query_selector(&format!("#{}",&account_guid_selector));
             if display_transactions_older_than_one_year() {
-                load_transactions_for_account_into_body_for_all_time(account_link);
+                load_transactions_for_account_into_body_for_all_time(account_guid_string.clone());
             } else {
-                load_transactions_for_account_into_body_for_one_year_from_memory(account_link);
+                load_transactions_for_account_into_body_for_one_year_from_memory(account_guid_string.clone());
             }
         }) as Box<dyn Fn()>);
         
-        account_div.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));        
+        //account_div.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));
         account_link.set_onclick(Some(account_link_on_click.as_ref().unchecked_ref()));
         
         account_link_on_click.forget();
@@ -2045,7 +2059,7 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
         //Setup the account type, and place it inside the account div
         let account_type = document_create_element("div");
         account_type.set_text_content(
-            Some(format!("{}",&account.account_type).as_str())
+            Some(format!("{}",&account.clone().account_type).as_str())
         );
         account_type.class_list().add_1("account_type").expect("Failed to add class to element.");
         account_div.append_child(&account_type).expect("Failed to append account_type to account_div!");
@@ -2053,7 +2067,7 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
         //Setup the account description, and place it inside the account div
         let account_description = document_create_element("div");
         account_description.set_text_content(
-            Some(format!("{}",&account.description).as_str())
+            Some(format!("{}",&account.clone().description).as_str())
         );
         account_description.class_list().add_1("account_description").expect("Failed to add class to element.");
         account_div.append_child(&account_description).expect("Failed to append account_type to account_div!");
@@ -2061,9 +2075,9 @@ pub fn load_accounts_into_body(accounts : Vec<Account>) {
         //Setup the account balance, and place it inside the account div
         let account_balance = document_create_element("div");
         let balance = &format!("{}",
-                        &account.tags.get("balance").unwrap_or(&"No balance tag!".to_string()));
+                        &account.clone().tags.get("balance").unwrap_or(&"No balance tag!".to_string()));
         let mnemonic = &format!("{}",
-                        &account.tags.get("mnemonic").unwrap_or(&"".to_string()));
+                        &account.clone().tags.get("mnemonic").unwrap_or(&"".to_string()));
         js::log(&format!("mnenomic is '{}'",mnemonic));
 
         //unpdate the balance in a way that looks nice
