@@ -596,11 +596,11 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
 
         //Get the date we want to limit results to start at 1 year so far
         let date_to_use = chrono::NaiveDateTime::new(NaiveDate::from_ymd_opt
-                            (Local::now().naive_local().date().year()-1,
+                            (Local::now().naive_local().date().year(),
                             Local::now().naive_local().date().month(),
-                            Local::now().naive_local().date().day()).unwrap(), 
+                            Local::now().naive_local().date().day()).unwrap(),
                         NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap()
-        );
+        ).checked_sub_days(chrono::Days::new(365)).unwrap();
 
         //Get the balance, and account information for the previous year
         let mut accounts = Vec::new();
@@ -672,12 +672,14 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
         {
             let stmt = crate::DATABASE[0].prepare(&shu::load_transactions_for_account_between_dates());
     
-            let from_date = chrono::NaiveDateTime::new(NaiveDate::from_ymd_opt
-                                                            (Local::now().naive_local().date().year()-1,
-                                                            Local::now().naive_local().date().month(),
-                                                            Local::now().naive_local().date().day()).unwrap(), 
-                                                        NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap()
-            );
+            let from_date = chrono::NaiveDateTime::new(
+                                                                NaiveDate::from_ymd_opt(
+                                                                    Local::now().naive_local().date().year(),
+                                                                    Local::now().naive_local().date().month(),
+                                                                    Local::now().naive_local().date().day()
+                                                                ).unwrap(),
+                                                                NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap()
+            ).checked_sub_days(chrono::Days::new(365)).unwrap();
 
             let from_date = from_date.format("%Y-%m-%d 00:00:00").to_string();
     
