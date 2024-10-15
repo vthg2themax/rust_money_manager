@@ -20,3 +20,4 @@ SELECT
     substr(t.post_date,7,2)||' '||substr(t.post_date,9,2)||':'||substr(t.post_date,11,2)||':'||substr(t.post_date,13,2))  
         <= Datetime(?)  
     ) AND AccountType=?
+ORDER BY Description;
