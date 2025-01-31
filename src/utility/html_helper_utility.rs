@@ -1,3 +1,4 @@
+use core::error;
 /**
 html_helper_utility will be all the functions that have to do with HTML output to the form.
 The only reason something should be here is if it outputs HTML to the form, so this could
@@ -6,8 +7,10 @@ Every one of these call should set the #footer, and #body to nothing first.
 */
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::str::FromStr;
 
 use base64::{engine::general_purpose, Engine as _};
+use serde_json::de;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -221,13 +224,19 @@ pub fn generate_html_for_report_for_account_type(
 
     final_html += "Transactions List";
     final_html += "<ul>";
-    
+
     for split in &report_splits {
         let split_amount: f64 = split.quantity_num as f64 / split.quantity_denom as f64;
         let split_amount = dhu::format_money(split_amount);
         final_html += &format!(
-            "<li>{} - {}:{}</li>",
-            split.description, split.account_name, split_amount
+            "<li>{}: {} - {}:{}</li>",
+            chrono::NaiveDateTime::parse_from_str(&split.post_date, "%Y%m%d%H%M%S")
+                .unwrap()
+                .format("%Y-%m-%d")
+                .to_string(),
+            split.description,
+            split.account_name,
+            split_amount
         );
     }
 
@@ -971,11 +980,7 @@ pub fn show_loading_message(message: String) {
         .expect("Failed to apppend loading message.");
 }
 
-/// load_last_transaction_for_account loads the last transaction for the account, and is
-/// meant to be called from javascript because onblur events are not currently supported
-/// with wasm-bindgen.
-#[allow(dead_code)]
-#[wasm_bindgen()]
+/// load_last_transaction_for_account loads the last transaction for the account.
 pub fn load_last_transaction_for_account() {
     let error_message: String = String::from("Failed to load last transaction for account");
     let currently_loaded_account_guid = document_query_selector("#currently_loaded_account_guid")
@@ -1079,49 +1084,155 @@ pub fn document_create_transaction_editor(
         .append_child(&transaction_editor_top_row)
         .expect(&error_message);
 
-    let mut transaction_editor_top_row_html = format!("
-        <input type='hidden' id='currently_loaded_account_guid' data-guid='{account_guid}' value='{account_guid}' />
-        <input type='date' id='date_input' value='{date_input}' />
-        <input type='time' id='time_input' step='1' value='{time_input}' />
-        <input type='text' id='description_input' onblur='money_manager.load_last_transaction_for_account();' 
-            placeholder='Description' list='description_datalist' />
-        <datalist id='description_datalist'>
-        ",
-        account_guid=&dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded),
-        date_input=&chrono::Local::now().naive_local().format("%Y-%m-%d").to_string(),
-        time_input=&chrono::Local::now().naive_local().format("%H:%M:%S").to_string()
-    );
-    for txn in transactions_to_prefill_description_with {
-        let option = format!(
-            r#"<option value="{}">"#,
-            dhu::sanitize_string(txn.description)
+    // create the currently loaded account guid hidden input
+    {
+        let currently_loaded_account_guid_input = document_create_element("input")
+            .dyn_into::<web_sys::HtmlInputElement>()
+            .expect(&error_message);
+        currently_loaded_account_guid_input.set_id("currently_loaded_account_guid");
+        currently_loaded_account_guid_input.set_type("hidden");
+        currently_loaded_account_guid_input.set_value(&format!(
+            "{}",
+            dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded)
+        ));
+        let _ = currently_loaded_account_guid_input.set_attribute(
+            "data-guid",
+            &dhu::convert_guid_to_sqlite_string(&account_guid_currently_loaded),
         );
-        if !transaction_editor_top_row_html.contains(&option) {
-            transaction_editor_top_row_html += &option;
-        }
-    }
-    transaction_editor_top_row_html += "</datalist>";
-    transaction_editor_top_row_html += "
-    <select id='category_select'>";
 
-    //Setup the categories to choose from now
-    let mut accounts = accounts_manager::load_all_accounts_except_root_and_template_from_memory();
-    accounts.sort_by(|a, b| a.name.cmp(&b.name));
-    for account in accounts {
-        //Don't load the current account we are in
-        if account.guid != account_guid_currently_loaded {
-            let option = format!(
-                r#"<option value="{}">{}</option>"#,
-                account.guid.to_string(),
-                dhu::sanitize_string(account.name),
-            );
-            transaction_editor_top_row_html += &option;
-        }
+        transaction_editor_top_row
+            .append_child(&currently_loaded_account_guid_input)
+            .expect(&error_message);
     }
 
-    transaction_editor_top_row_html += "
-    </select>";
-    transaction_editor_top_row.set_inner_html(&transaction_editor_top_row_html);
+    // create the date input
+    {
+        let date_input = document_create_element("input")
+            .dyn_into::<web_sys::HtmlInputElement>()
+            .expect(&error_message);
+        date_input.set_id("date_input");
+        date_input.set_type("date");
+        date_input.set_value(
+            &chrono::Local::now()
+                .naive_local()
+                .format("%Y-%m-%d")
+                .to_string(),
+        );
+
+        transaction_editor_top_row
+            .append_child(&date_input)
+            .expect(&error_message);
+    }
+
+    // create the time input
+    {
+        let time_input = document_create_element("input")
+            .dyn_into::<web_sys::HtmlInputElement>()
+            .expect(&error_message);
+        time_input.set_id("time_input");
+        time_input.set_type("time");
+        time_input.set_step("1");
+        time_input.set_value(&format!(
+            "{}",
+            &chrono::Local::now()
+                .naive_local()
+                .format("%H:%M:%S")
+                .to_string()
+        ));
+
+        transaction_editor_top_row
+            .append_child(&time_input)
+            .expect(&error_message);
+    }
+
+    // create the description input and on_blur handler
+    {
+        let description_input = document_create_element("input")
+            .dyn_into::<web_sys::HtmlInputElement>()
+            .expect(&error_message);
+        description_input.set_id("description_input");
+        description_input.set_type("text");
+        description_input.set_placeholder("Description");
+        let _ = description_input
+            .set_attribute("list", "description_datalist")
+            .expect(&error_message);
+
+        transaction_editor_top_row
+            .append_child(&description_input)
+            .expect(&error_message);
+
+        let description_on_blur = Closure::wrap(Box::new(move || {
+            load_last_transaction_for_account();
+        }) as Box<dyn Fn()>);
+
+        description_input.set_onblur(Some(description_on_blur.as_ref().unchecked_ref()));
+        description_on_blur.forget();
+    }
+
+    // Setup the description_datalist
+    {
+        let description_datalist = document_create_element("datalist")
+            .dyn_into::<web_sys::HtmlDataListElement>()
+            .expect(&error_message);
+        description_datalist.set_id("description_datalist");
+
+        let mut options_for_datalist = Vec::new();
+        for txn in transactions_to_prefill_description_with {
+            if !options_for_datalist.contains(&txn.description) {
+                options_for_datalist.push(txn.description);
+            }
+        }
+
+        for option_for_datalist in options_for_datalist {
+            let option = document_create_element("option")
+                .dyn_into::<web_sys::HtmlOptionElement>()
+                .expect(&error_message);
+            option.set_value(&dhu::sanitize_string(option_for_datalist));
+
+            description_datalist
+                .append_child(&option)
+                .expect(&error_message);
+        }
+
+        transaction_editor_top_row
+            .append_child(&description_datalist)
+            .expect(&error_message);
+    }
+
+    // Setup the category_select
+    {
+        let category_select = document_create_element("select")
+            .dyn_into::<web_sys::HtmlSelectElement>()
+            .expect(&error_message);
+        category_select.set_id("category_select");
+
+        let mut options = Vec::new();
+        //Setup the categories to choose from now
+        let mut accounts =
+            accounts_manager::load_all_accounts_except_root_and_template_from_memory();
+        accounts.sort_by(|a, b| a.name.cmp(&b.name));
+        for account in accounts {
+            //Don't load the current account we are in
+            if account.guid != account_guid_currently_loaded {
+                let option = document_create_element("option")
+                    .dyn_into::<web_sys::HtmlOptionElement>()
+                    .expect(&error_message);
+                option.set_value(&dhu::sanitize_string(account.guid.to_string()));
+                option.set_text_content(Some(&dhu::sanitize_string(account.name)));
+                if !options.contains(&option) {
+                    options.push(option);
+                }
+            }
+        }
+
+        for option in options {
+            category_select.append_child(&option).expect(&error_message);
+        }
+
+        transaction_editor_top_row
+            .append_child(&category_select)
+            .expect(&error_message);
+    }
 
     //Setup the change input next
     {

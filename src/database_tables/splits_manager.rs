@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -22,6 +23,8 @@ pub struct SplitWithTransactionInformation {
     pub account_name: String,     //account_name is the account name for this account's guid
     #[serde(rename(deserialize = "Description"))]
     pub description: String,      //description is the description for this transaction
+    #[serde(rename(deserialize = "PostDate"))]
+    pub post_date: String,      //PostDate is the posting date
 }
 
 /// retrieve_splits_for_dates_report gives you the splits for use in making a report.
