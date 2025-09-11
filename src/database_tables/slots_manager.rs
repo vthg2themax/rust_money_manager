@@ -1,21 +1,20 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 
-
-use crate::utility::{database_helper_utility as dhu, js_helper_utility as js};
 use crate::utility::sql_helper_utility as shu;
+use crate::utility::{database_helper_utility as dhu, js_helper_utility as js};
 
-pub const SLOT_NAME_NOTES : &str = "notes";
+pub const SLOT_NAME_NOTES: &str = "notes";
 
-pub const SLOT_NAME_NOTES_SLOT_TYPE_VALUE : i64 = 4;
+pub const SLOT_NAME_NOTES_SLOT_TYPE_VALUE: i64 = 4;
 
 /// SLOT_NAME_DISPLAY_TRANSACTIONS_OLDER_THAN_ONE_YEAR is the name of the slot where what is displayed
 ///  is a 1 or 0 for whether to display transactions older than 1 year in the program.
-pub const SLOT_NAME_DISPLAY_TRANSACTIONS_OLDER_THAN_ONE_YEAR : &str = "display_transactions_older_than_one_year";
+pub const SLOT_NAME_DISPLAY_TRANSACTIONS_OLDER_THAN_ONE_YEAR: &str =
+    "display_transactions_older_than_one_year";
 
 /// SLOT_NAME_SETTINGS is the correct spelling for settings.
-pub const SLOT_NAME_SETTINGS : &str = "settings";
-
+pub const SLOT_NAME_SETTINGS: &str = "settings";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Slot {
@@ -35,144 +34,139 @@ pub struct Slot {
 
 pub fn _fields() -> String {
     String::from(
-        ["id,obj_guid,name,slot_type,int64_val,string_val,double_val,timespec_val,guid_val,",
-         "numeric_val_num,numeric_val_denom,gdate_val"].join("")
-         )
+        [
+            "id,obj_guid,name,slot_type,int64_val,string_val,double_val,timespec_val,guid_val,",
+            "numeric_val_num,numeric_val_denom,gdate_val",
+        ]
+        .join(""),
+    )
 }
 
 /// save_slot_for_name_and_string_val_and_in64_val saves a new slot for the given name, string_val,
 /// and int64_val. *Warning! This will delete the old slot records that have the same name and string_val*
-pub fn save_slot_for_name_and_string_val_and_int64_val(name: String, string_val: String, int64_val: i64) -> Result<bool,String> {
+pub fn save_slot_for_name_and_string_val_and_int64_val(
+    name: String,
+    string_val: String,
+    int64_val: i64,
+) -> Result<bool, String> {
     //var db = new sqlContext.Database();
     //// Run a query without reading the results
     //db.run("CREATE TABLE test (col1, col2);");
     //// Insert two rows: (1,111) and (2,222)
     //db.run("INSERT INTO test VALUES (?,?), (?,?)", [1, 111, 2, 222]);
-    unsafe {
-        if crate::DATABASE.len() == 0 {
-            return Err("Please select a database in order to view the account by the given guid.".to_string());
-        }
 
-        {
-            
-            //Delete the slot record
-            let binding_object =serde_wasm_bindgen::to_value(
-                &vec!(
-                        &name,
-                        &string_val,
-                    )
-            ).unwrap();
-            crate::DATABASE[0].run_with_parameters("DELETE FROM slots WHERE name=? AND string_val=?", 
-                                                    binding_object);
-            
-            //Insert The slot record
-            let slot = Slot {
-                id: -1, //id is the Slot's id, it's an autoincrementing integer. Set to -1 to allow it to do that.
-                obj_guid: Uuid::nil(), //obj_guid is the object guid associated with this record.
-                name: name, //name is the name that this slot is associated with. (Ex: 'notes' means a note on a transaction.)
-                slot_type: 0, //slot_type is the integer type for this slot. (Ex: '4' means a note about a transaction.,'10' means a date-posted)
-                int64_val: int64_val, //int64 is 0, unless it's actually used.
-                string_val: string_val, //string_val is the information about this slot. (Ex: '32mpg' is the note about a transaction.)
-                double_val: None, //double_val is a float value for this slot. (Ex: '0.0')
-                timespec_val: None, //timespec_val is a null value that could eventually be used
-                guid_val: None, //guid_val is a null value string that could eventually be used
-                numeric_val_num: Some(0), //numeric_val_num is the numeric value number. 0 by default
-                numeric_val_denom: Some(1), //numeric_val_denom is the denom 1 by default.
-                gdate_val: None, //gdate_val is a null value that could eventually be used
-            };
-            let binding_object =serde_wasm_bindgen::to_value(
-                &vec!(
-                        &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()), //obj_guid
-                        &slot.name,//name
-                        &slot.slot_type.to_string(), //slot_type
-                        &slot.int64_val.to_string(), //int64_val
-                        &slot.string_val, //string_val
-                    )
-            ).unwrap();
-            crate::DATABASE[0].run_with_parameters("
+    if crate::DATABASE.lock().unwrap().len() == 0 {
+        return Err(
+            "Please select a database in order to view the account by the given guid.".to_string(),
+        );
+    }
+
+    {
+        //Delete the slot record
+        let binding_object = serde_wasm_bindgen::to_value(&vec![&name, &string_val]).unwrap();
+        crate::DATABASE.lock().unwrap()[0].run_with_parameters(
+            "DELETE FROM slots WHERE name=? AND string_val=?",
+            binding_object,
+        );
+
+        //Insert The slot record
+        let slot = Slot {
+            id: -1, //id is the Slot's id, it's an autoincrementing integer. Set to -1 to allow it to do that.
+            obj_guid: Uuid::nil(), //obj_guid is the object guid associated with this record.
+            name: name, //name is the name that this slot is associated with. (Ex: 'notes' means a note on a transaction.)
+            slot_type: 0, //slot_type is the integer type for this slot. (Ex: '4' means a note about a transaction.,'10' means a date-posted)
+            int64_val: int64_val, //int64 is 0, unless it's actually used.
+            string_val: string_val, //string_val is the information about this slot. (Ex: '32mpg' is the note about a transaction.)
+            double_val: None,       //double_val is a float value for this slot. (Ex: '0.0')
+            timespec_val: None,     //timespec_val is a null value that could eventually be used
+            guid_val: None,         //guid_val is a null value string that could eventually be used
+            numeric_val_num: Some(0), //numeric_val_num is the numeric value number. 0 by default
+            numeric_val_denom: Some(1), //numeric_val_denom is the denom 1 by default.
+            gdate_val: None,        //gdate_val is a null value that could eventually be used
+        };
+        let binding_object = serde_wasm_bindgen::to_value(&vec![
+            &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()), //obj_guid
+            &slot.name,                                           //name
+            &slot.slot_type.to_string(),                          //slot_type
+            &slot.int64_val.to_string(),                          //int64_val
+            &slot.string_val,                                     //string_val
+        ])
+        .unwrap();
+        crate::DATABASE.lock().unwrap()[0].run_with_parameters("
                 INSERT INTO slots(
                                  obj_guid,name,slot_type,int64_val,string_val,double_val,timespec_val,
                                  guid_val,numeric_val_num,numeric_val_denom,gdate_val                                   
                                  ) VALUES (                                                 
                                  ?,       ?,   ?,        ?,        ?,         NULL,      NULL,
-                                 NULL,    NULL,           NULL,             NULL);", binding_object);            
-            
-        }
+                                 NULL,    NULL,           NULL,             NULL);", binding_object);
     }
-    
+
     return Ok(true);
 }
 
-
 /// load_slots_for_name loads a slot for the given name value.
-pub fn load_slots_for_name(name: String) -> Result<Vec<Slot>,String> {
-    unsafe {
-        if crate::DATABASE.len() == 0 {
-            return Err("Please select a database in order to continue.".to_string());
-        }
+pub fn load_slots_for_name(name: String) -> Result<Vec<Slot>, String> {
+    if crate::DATABASE.lock().unwrap().len() == 0 {
+        return Err("Please select a database in order to continue.".to_string());
+    }
 
-        //Prepare a statement
-        let stmt = crate::DATABASE[0].prepare(&shu::load_slots_for_name());
+    //Prepare a statement
+    let stmt = crate::DATABASE.lock().unwrap()[0].prepare(&shu::load_slots_for_name());
 
-        let binding_object =serde_wasm_bindgen::to_value(
-            &vec!(
-                    name
-                )
-        ).unwrap();
+    let binding_object = serde_wasm_bindgen::to_value(&vec![name]).unwrap();
 
-        stmt.bind(binding_object.clone());
+    stmt.bind(binding_object.clone());
 
-        let mut slots = Vec::new();
+    let mut slots = Vec::new();
 
-        while stmt.step() {
-            let row = stmt.getAsObject();
-            //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+    while stmt.step() {
+        let row = stmt.getAsObject();
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let slot : Slot = serde_wasm_bindgen::from_value(row.clone()).unwrap();
+        let slot: Slot = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
-            slots.push(slot);
-        }
+        slots.push(slot);
+    }
 
-        stmt.free();
-    
-        return Ok(slots);
-    }    
+    stmt.free();
+
+    return Ok(slots);
 }
 
 /// load_slot_for_name_and_string_val loads a slot for the given name, and string_val.
-pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> Result<Vec<Slot>,String> {
-    unsafe {
-        if crate::DATABASE.len() == 0 {
-            return Err("Please select a database in order to load a slot for the given parameters.".to_string());
-        }
+pub fn load_slots_for_name_and_string_val(
+    name: String,
+    string_val: String,
+) -> Result<Vec<Slot>, String> {
+    if crate::DATABASE.lock().unwrap().len() == 0 {
+        return Err(
+            "Please select a database in order to load a slot for the given parameters."
+                .to_string(),
+        );
+    }
 
-        //Prepare a statement
-        let stmt = crate::DATABASE[0].prepare(&shu::load_slots_for_name_and_string_val());
+    //Prepare a statement
+    let stmt =
+        crate::DATABASE.lock().unwrap()[0].prepare(&shu::load_slots_for_name_and_string_val());
 
-        let binding_object =serde_wasm_bindgen::to_value(
-            &vec!(
-                    name,
-                    string_val,
-                )
-        ).unwrap();
+    let binding_object = serde_wasm_bindgen::to_value(&vec![name, string_val]).unwrap();
 
-        stmt.bind(binding_object.clone());
+    stmt.bind(binding_object.clone());
 
-        let mut slots = Vec::new();
+    let mut slots = Vec::new();
 
-        while stmt.step() {
-            let row = stmt.getAsObject();
-            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+    while stmt.step() {
+        let row = stmt.getAsObject();
+        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
-            let slot : Slot = serde_wasm_bindgen::from_value(row.clone()).unwrap();
+        let slot: Slot = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
-            slots.push(slot);
-        }
+        slots.push(slot);
+    }
 
-        stmt.free();
-    
-        return Ok(slots);
-    }    
+    stmt.free();
+
+    return Ok(slots);
 }
 
 // pub fn read_row_into_new_slot(incoming_row: &rusqlite::Row<'_>) -> Result<Slot> {
@@ -194,19 +188,18 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     )
 // }
 
-
 // pub fn retrieve_all_for_obj_guid(file_path: &str, incoming_guid: GUID) -> Result<Vec<Slot>> {
 //     //Attempt to open the file from the given path to perform this operation
 //     let conn = Connection::open(file_path)?;
 //     //Get all the book records
 //     let sql : String = String::from(
-//         ["SELECT ",&_fields()," FROM slots WHERE obj_guid=@obj_guid ", 
+//         ["SELECT ",&_fields()," FROM slots WHERE obj_guid=@obj_guid ",
 //          ""].join(""));
 //     let mut stmt = conn.prepare(&sql)?;
 //     //Get all the commodities into a vector for returning the result
 //     let mut slots : Vec<Slot> = Vec::new();
 //     let mapped_rows = stmt.query_map_named(
-//         named_params!{"@obj_guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, 
+//         named_params!{"@obj_guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? },
 //         |row|
 //         read_row_into_new_slot(row)
 //     )?;
@@ -214,7 +207,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     //Now we can put each of the mapped row results into the results vector
 //     for row in mapped_rows {
 //         slots.push(row?);
-//     }    
+//     }
 
 //     Ok(slots)
 // }
@@ -224,13 +217,13 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     let conn = Connection::open(file_path)?;
 //     //Get all the book records
 //     let sql : String = String::from(
-//         ["SELECT ",&_fields()," FROM slots WHERE name=@name ", 
+//         ["SELECT ",&_fields()," FROM slots WHERE name=@name ",
 //          ""].join(""));
 //     let mut stmt = conn.prepare(&sql)?;
 //     //Get all the commodities into a vector for returning the result
 //     let mut slots : Vec<Slot> = Vec::new();
 //     let mapped_rows = stmt.query_map_named(
-//         named_params!{"@name": incoming_name }, 
+//         named_params!{"@name": incoming_name },
 //         |row|
 //         read_row_into_new_slot(row)
 //     )?;
@@ -238,7 +231,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     //Now we can put each of the mapped row results into the results vector
 //     for row in mapped_rows {
 //         slots.push(row?);
-//     }    
+//     }
 
 //     Ok(slots)
 // }
@@ -248,13 +241,13 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     let conn = Connection::open(file_path)?;
 //     //Get all the book records
 //     let sql : String = String::from(
-//         ["SELECT ",&_fields()," FROM slots WHERE guid_val=@guid_val ", 
+//         ["SELECT ",&_fields()," FROM slots WHERE guid_val=@guid_val ",
 //          ""].join(""));
 //     let mut stmt = conn.prepare(&sql)?;
 //     //Get all the commodities into a vector for returning the result
 //     let mut slots : Vec<Slot> = Vec::new();
 //     let mapped_rows = stmt.query_map_named(
-//         named_params!{"@guid_val": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, 
+//         named_params!{"@guid_val": dhu::convert_guid_to_sqlite_string(incoming_guid)? },
 //         |row|
 //         read_row_into_new_slot(row)
 //     )?;
@@ -262,12 +255,10 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     //Now we can put each of the mapped row results into the results vector
 //     for row in mapped_rows {
 //         slots.push(row?);
-//     }    
+//     }
 
 //     Ok(slots)
 // }
-
-
 
 // ///retrieve_all_slots retrieves all the records.
 // pub fn retrieve_all_slots(file_path : &str) -> Result<Vec<Lot>> {
@@ -275,13 +266,13 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     let conn = Connection::open(file_path)?;
 //     //Get all the book records
 //     let sql : String = String::from(
-//         ["SELECT ",&_fields()," FROM lots ", 
+//         ["SELECT ",&_fields()," FROM lots ",
 //          ""].join(""));
 //     let mut stmt = conn.prepare(&sql)?;
 //     //Get all the commodities into a vector for returning the result
 //     let mut lots : Vec<Lot> = Vec::new();
-//     let mapped_rows = stmt.query_map(NO_PARAMS, |row| 
-//         Ok( 
+//     let mapped_rows = stmt.query_map(NO_PARAMS, |row|
+//         Ok(
 //             Lot{
 //                     guid: dhu::convert_string_result_to_guid(row.get(0))?,
 //                     account_guid: dhu::convert_string_result_to_guid(row.get(1))?,
@@ -293,7 +284,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     //Now we can put each of the mapped row results into the results vector
 //     for row in mapped_rows {
 //         lots.push(row?);
-//     }    
+//     }
 
 //     Ok(lots)
 // }
@@ -304,14 +295,14 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     let conn = Connection::open(file_path)?;
 //     //Get all the lot record fields
 //     let sql : String = String::from(
-//         ["SELECT ",&_fields()," FROM lots ", 
+//         ["SELECT ",&_fields()," FROM lots ",
 //          "WHERE guid=@guid"].join(""));
 //     let mut stmt = conn.prepare(&sql)?;
 //     //Get all the records into a vector for returning the result
 //     let mut lots : Vec<Loty> = Vec::new();
 //     let mapped_rows = stmt.query_map_named(
-//         named_params!{"@guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, |row| 
-//         Ok( 
+//         named_params!{"@guid": dhu::convert_guid_to_sqlite_string(incoming_guid)? }, |row|
+//         Ok(
 //             Lot{
 //                     guid: dhu::convert_string_result_to_guid(row.get(0))?,
 //                     account_guid: dhu::convert_string_result_to_guid(row.get(1))?,
@@ -323,7 +314,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     //Now we can put each of the mapped row results into the results vector
 //     for row in mapped_rows {
 //         lots.push(row?);
-//     }    
+//     }
 
 //     Ok(lots)
 // }
@@ -331,8 +322,8 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 // pub fn save_new(file_path : &str, incoming_lot : &Lot) -> Result<bool> {
 //     //Attempt to open the file from the given path to perform this operation
 //     let conn = Connection::open(file_path)?;
-    
-//     let sql = 
+
+//     let sql =
 //         ["INSERT INTO lots (", &_fields(),") values (",
 //          "@guid,@account_guid,@is_closed",
 //          ")"
@@ -346,9 +337,8 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //                                                 incoming_lot.account_guid)?,
 //             "@is_closed" : incoming_lot.is_closed,
 //         }
-//         ).unwrap();    
+//         ).unwrap();
 
-    
 //     if result != 1 {
 //         panic!(format!("There were {0} record changes instead of just 1!",
 //                         result.to_string())
@@ -356,7 +346,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     }
 
 //     Ok(true)
-    
+
 // }
 
 /// A UTF-8 encoded, growable string.
@@ -591,7 +581,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 
 //     for slot in incoming_slots {
 //         {
-            
+
 //         let sql = ["CREATE TABLE accounts (guid text(32) PRIMARY KEY Not NULL,",
 //                    " name text(2048) Not NULL, account_type text(2048) Not NULL,",
 //                    " commodity_guid text(32), commodity_scu Integer Not NULL,",
@@ -608,8 +598,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 
 //     }
 
-//     let sql = 
-        
+//     let sql =
 
 //     let result = conn.execute_named(&sql,
 //         named_params!{
@@ -617,9 +606,8 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //             "@account_guid" : dhu::convert_guid_to_sqlite_string(incoming_lot.account_guid)?,
 //             "@@is_closed" : if(incoming_lot.is_closed==true){1} else {0},
 //         }
-//         ).unwrap();    
+//         ).unwrap();
 
-    
 //     if result != 1 {
 //         panic!(format!("There were {0} record changes instead of just 1!",
 //                         result.to_string())
@@ -627,14 +615,14 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     }
 
 //     Ok(true)
-    
+
 // }
 
 // pub fn update_existing(file_path : &str, incoming_lot : &Lot) -> Result<bool> {
 //     //Attempt to open the file from the given path to perform this operation
 //     let conn = Connection::open(file_path)?;
-    
-//     let sql = 
+
+//     let sql =
 //         ["UPDATE lots SET ",
 //                                 "account_guid=@account_guid,",
 //                                 "is_closed=@is_closed ",
@@ -647,9 +635,8 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //             "@account_guid" : dhu::convert_guid_to_sqlite_string(incoming_lot.account_guid)?,
 //             "@@is_closed" : if(incoming_lot.is_closed==true){1} else {0},
 //         }
-//         ).unwrap();    
+//         ).unwrap();
 
-    
 //     if result != 1 {
 //         panic!(format!("There were {0} record changes instead of just 1!",
 //                         result.to_string())
@@ -657,14 +644,14 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     }
 
 //     Ok(true)
-    
+
 // }
 
 // pub fn delete_existing(file_path : &str, incoming_obj_guid : GUID) -> Result<bool> {
 //     //Attempt to open the file from the given path to perform this operation
 //     let conn = Connection::open(file_path)?;
-    
-//     let sql = 
+
+//     let sql =
 //         ["DELETE FROM slots ",
 //         " WHERE obj_guid=@obj_guid"
 //         ].join("");
@@ -674,9 +661,8 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //             "@obj_guid" : dhu::convert_guid_to_sqlite_string(
 //                                                 incoming_obj_guid)?,
 //         }
-//         ).unwrap();    
+//         ).unwrap();
 
-    
 //     if result != 1 {
 //         panic!(format!("There were {0} record changes instead of just 1!",
 //                         result.to_string())
@@ -684,7 +670,7 @@ pub fn load_slots_for_name_and_string_val(name: String, string_val: String) -> R
 //     }
 
 //     Ok(true)
-    
+
 // }
 
 #[cfg(test)]

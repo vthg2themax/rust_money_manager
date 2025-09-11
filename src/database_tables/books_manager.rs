@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Book {
     pub guid: Uuid, //guid is the GUID for this book.

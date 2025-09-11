@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 //guid, account_guid, is_closed
 
-
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Lot {
     pub guid: Uuid, //guid is the lot's guid. Not NULL

@@ -46,5 +46,5 @@ cp -v $project_directory/pkg/money_manager.js $project_directory/target/www/scri
 #Copy the standard html,css, and js files to the www directory
 cd $project_directory
 cp -rv src/scripts/ target/www/
-cp -rv src/css/ target/www/
+cp -r src/css/ target/www/
 cp -v src/index.html target/www/

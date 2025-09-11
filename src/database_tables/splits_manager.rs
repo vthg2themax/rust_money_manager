@@ -1,4 +1,3 @@
-use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -22,9 +21,9 @@ pub struct SplitWithTransactionInformation {
     pub lot_guid: Option<String>, //lot_guid is the lot's guid of this split this is set as null in the database if not applicable.
     pub account_name: String,     //account_name is the account name for this account's guid
     #[serde(rename(deserialize = "Description"))]
-    pub description: String,      //description is the description for this transaction
+    pub description: String, //description is the description for this transaction
     #[serde(rename(deserialize = "PostDate"))]
-    pub post_date: String,      //PostDate is the posting date
+    pub post_date: String, //PostDate is the posting date
 }
 
 /// retrieve_splits_for_dates_report gives you the splits for use in making a report.
@@ -35,37 +34,36 @@ pub fn retrieve_splits_for_dates_report(
 ) -> Vec<SplitWithTransactionInformation> {
     let mut splits = Vec::new();
 
-    unsafe {
-        if crate::DATABASE.len() == 0 {
-            panic!("Please select a database in order to continue!");
+    if crate::DATABASE.lock().unwrap().len() == 0 {
+        panic!("Please select a database in order to continue!");
+    }
+
+    {
+        let stmt =
+            crate::DATABASE.lock().unwrap()[0].prepare(&shu::load_splits_for_last_30_day_report());
+
+        let binding_object = serde_wasm_bindgen::to_value(&vec![
+            &from_date.format("%Y-%m-%d 00:00:00").to_string(),
+            &thru_date.format("%Y-%m-%d 23:59:59").to_string(),
+            &incoming_account_type,
+        ])
+        .unwrap();
+
+        stmt.bind(binding_object.clone());
+
+        while stmt.step() {
+            let row = stmt.getAsObject();
+            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+            let split: SplitWithTransactionInformation =
+                serde_wasm_bindgen::from_value(row.clone()).unwrap();
+
+            splits.push(split);
         }
 
-        {
-            let stmt = crate::DATABASE[0].prepare(&shu::load_splits_for_last_30_day_report());
-
-            let binding_object = serde_wasm_bindgen::to_value(&vec![
-                &from_date.format("%Y-%m-%d 00:00:00").to_string(),
-                &thru_date.format("%Y-%m-%d 23:59:59").to_string(),
-                &incoming_account_type,
-            ])
-            .unwrap();
-
-            stmt.bind(binding_object.clone());
-
-            while stmt.step() {
-                let row = stmt.getAsObject();
-                js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
-
-                let split: SplitWithTransactionInformation =
-                    serde_wasm_bindgen::from_value(row.clone()).unwrap();
-
-                splits.push(split);
-            }
-
-            //Free the memory for the statement, and the bindings
-            stmt.free();
-            stmt.freemem();
-        }
+        //Free the memory for the statement, and the bindings
+        stmt.free();
+        stmt.freemem();
     }
 
     return splits;

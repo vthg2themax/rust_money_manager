@@ -33,8 +33,11 @@ extern "C" {
 
     #[wasm_bindgen(method, js_name = run)]
     pub fn run_with_parameters(this: &Database, s: &str, p: JsValue) -> Database;
-
+    
 }
+    
+unsafe impl Send for Database {}
+ unsafe impl Sync for Database {}
 
 #[wasm_bindgen]
 extern "C" {
