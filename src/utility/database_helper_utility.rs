@@ -37,7 +37,6 @@ extern "C" {
 }
     
 unsafe impl Send for Database {}
- unsafe impl Sync for Database {}
 
 #[wasm_bindgen]
 extern "C" {

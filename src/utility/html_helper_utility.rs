@@ -9,18 +9,16 @@ Every one of these call should set the #footer, and #body to nothing first.
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-
 use crate::database_tables::accounts_manager::Account;
 use crate::database_tables::*;
 use crate::utility::database_helper_utility as dhu;
 use crate::utility::js_helper_utility as js;
 use crate::utility::sql_helper_utility as shu;
 
-use chrono::prelude::*;
 use chrono::Duration;
+use chrono::prelude::*;
 
 use rand::prelude::*;
 
@@ -495,9 +493,13 @@ pub fn load_transactions_for_account_into_body_for_all_time(account_guid: String
         .append_child(&transaction_editor)
         .expect("Failed to setup transaction editor!");
 
-    //scroll to the bottom of the transaction_div
-    let transaction_div = document_query_selector("#transaction_div");
-    transaction_div.set_scroll_top(transaction_div.scroll_height());
+    // scroll to the bottom of the div
+    js::set_timeout(
+        Closure::once_into_js(move || {
+            js::scroll_to_the_bottom(document_query_selector("#transaction_div"))
+        }),
+        500,
+    );
 }
 
 /// load_transactions_for_account_into_body_for_one_year_from_memory loads the transactions for the
@@ -539,7 +541,7 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
 
         while stmt.step() {
             let row = stmt.getAsObject();
-            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+            //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
             let mut account: Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
@@ -642,7 +644,7 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
 
             while stmt.step() {
                 let row = stmt.getAsObject();
-                js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+                //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
                 let txn: transactions_manager::TransactionWithSplitInformation =
                     serde_wasm_bindgen::from_value(row.clone()).unwrap();
@@ -656,7 +658,9 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
         }
 
         if transactions_with_splits.len() < 1 {
-            js::alert("No transactions were found that matched your request. Perhaps they are more than a year old?");
+            js::alert(
+                "No transactions were found that matched your request. Perhaps they are more than a year old?",
+            );
             return;
         }
 
@@ -669,9 +673,13 @@ pub fn load_transactions_for_account_into_body_for_one_year_from_memory(account_
             .append_child(&transaction_editor)
             .expect("Failed to setup transaction editor!");
 
-        //scroll to the bottom of the transaction_div
-        let transaction_div = document_query_selector("#transaction_div");
-        transaction_div.set_scroll_top(transaction_div.scroll_height());
+        // scroll to the bottom of the div
+        js::set_timeout(
+            Closure::once_into_js(move || {
+                js::scroll_to_the_bottom(document_query_selector("#transaction_div"))
+            }),
+            500,
+        );
     }
 }
 
@@ -2167,6 +2175,11 @@ pub fn load_accounts_into_body(accounts: Vec<Account>) {
             .expect("Failed to append account_balance to account_div!");
     }
 
-    //scroll to the top of the accounts_div
-    accounts_div.set_scroll_top(0);
+    // scroll to the top of the accounts_div
+    js::set_timeout(
+        Closure::once_into_js(move || {
+            accounts_div.set_scroll_top(0);
+        }),
+        250,
+    );
 }

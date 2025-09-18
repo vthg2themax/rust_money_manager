@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::utility::database_helper_utility as dhu;
-use crate::utility::js_helper_utility as js;
 use crate::utility::sql_helper_utility as shu;
 
 //guid,namespace,mnemonic,fullname,cusip,fraction,quote_flag,quote_source,quote_tz
@@ -37,7 +36,7 @@ pub fn retrieve_all_commodities() -> Vec<Commodity> {
 
     while stmt.step() {
         let row = stmt.getAsObject();
-        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
         let commodity: Commodity = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
@@ -69,7 +68,7 @@ pub fn retrieve_commodity_for_guid(commodity_guid: Uuid) -> Commodity {
 
     while stmt.step() {
         let row = stmt.getAsObject();
-        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
         let commodity: Commodity = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::utility::sql_helper_utility as shu;
-use crate::utility::{database_helper_utility as dhu, js_helper_utility as js};
+use crate::utility::database_helper_utility as dhu;
 
 pub const SLOT_NAME_NOTES: &str = "notes";
 
@@ -157,7 +157,7 @@ pub fn load_slots_for_name_and_string_val(
 
     while stmt.step() {
         let row = stmt.getAsObject();
-        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
         let slot: Slot = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 

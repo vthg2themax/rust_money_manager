@@ -1,9 +1,9 @@
 [package]
 name = "money_manager"
 description = "WASM SQLite GnuCash Money Management System"
-version = "0.9.0"
+version = "0.9.42"
 authors = ["Vince <vince@vinceworks.com>"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,21 +16,21 @@ unicode-segmentation = "1.12.0"
 format_num = "0.1.0"
 base64 = "0.22.1"
 rand = "0.9.2"
-serde = { version = "1.0.210", features = ["derive"] }
+serde = { version = "1.0.225", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"
 #Required, because the indirect reference needs to function in a JavaScript environment
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
 [dependencies.chrono]
-version = "0.4.38"
+version = "0.4.42"
 features = ["serde", "wasmbind"]
 
 [dependencies.serde_derive]
-version = "1.0.197"
+version = "1.0.225"
 
 
 [dependencies.uuid]
-version = "1.18.0"
+version = "1.18.1"
 features = [
   "serde", 
   "v4",
@@ -45,7 +45,7 @@ features = [
 ]
 
 [dependencies.web-sys]
-version = "0.3.72"
+version = "0.3.78"
 features = [
   "Document",
   "Element",
@@ -74,10 +74,12 @@ features = [
   "HtmlDataListElement",
   "HtmlOptionElement",
   "KeyboardEvent",
+  "Event",
+  "ObserverCallback",
   ]
 
 [dependencies.js-sys]
-version = "0.3.68"
+version = "0.3.80"
 features = [
   
 ]

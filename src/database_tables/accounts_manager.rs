@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::utility::database_helper_utility as dhu;
-use crate::utility::js_helper_utility as js;
 use crate::utility::sql_helper_utility as shu;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -187,7 +186,7 @@ pub fn retrieve_account_for_account_type(account_type: String) -> Result<Account
 
     while stmt.step() {
         let row = stmt.getAsObject();
-        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
         let account: Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
@@ -225,7 +224,7 @@ pub fn retrieve_account_for_guid(account_guid: Uuid) -> Result<Account, String> 
 
     while stmt.step() {
         let row = stmt.getAsObject();
-        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
         let account: Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
@@ -263,7 +262,7 @@ pub fn load_account_for_guid(account_guid: Uuid) -> Account {
 
     while stmt.step() {
         let row = stmt.getAsObject();
-        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
         let account: Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 
@@ -291,7 +290,7 @@ pub fn load_all_accounts_except_root_and_template_from_memory() -> Vec<Account> 
 
     while stmt.step() {
         let row = stmt.getAsObject();
-        js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
         let account: Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
 

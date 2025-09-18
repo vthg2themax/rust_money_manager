@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::utility::js_helper_utility as js;
 use crate::utility::sql_helper_utility as shu;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,7 +52,7 @@ pub fn retrieve_splits_for_dates_report(
 
         while stmt.step() {
             let row = stmt.getAsObject();
-            js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+            //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
 
             let split: SplitWithTransactionInformation =
                 serde_wasm_bindgen::from_value(row.clone()).unwrap();
