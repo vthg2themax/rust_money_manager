@@ -1,12 +1,14 @@
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-use uuid::Uuid;
-// use chrono::prelude::*;
+use crate::database_tables::accounts_manager::Account;
 use crate::database_tables::slots_manager;
+use crate::database_tables::transactions_manager;
 use crate::utility::database_helper_utility as dhu;
 use crate::utility::js_helper_utility as js;
 use crate::utility::sql_helper_utility as shu;
-//use chrono::prelude::*;
+use chrono::prelude::*;
+use uuid::Uuid;
 //use time::Duration;
 use serde_repr::*;
 use std::fmt;
@@ -108,43 +110,40 @@ pub fn _fields() -> String {
 /// delete_transaction deletes a transaction for the given transaction guid, along with the splits
 /// associated with it.
 pub fn delete_transaction(transaction_guid: Uuid) -> Result<bool, String> {
-    
-        if crate::DATABASE.lock().unwrap().len() == 0 {
-            return Err(
-                "Please select a database in order to view the account by the given guid."
-                    .to_string(),
-            );
-        }
+    if crate::DATABASE.lock().unwrap().len() == 0 {
+        return Err(
+            "Please select a database in order to view the account by the given guid.".to_string(),
+        );
+    }
 
-        {
-            //Delete the Transaction Records, and the associated records first
-            let binding_object =
-                serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(
-                    &transaction_guid,
-                )])
-                .unwrap();
-            crate::DATABASE.lock().unwrap()[0]
-                .run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
+    {
+        //Delete the Transaction Records, and the associated records first
+        let binding_object =
+            serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(
+                &transaction_guid,
+            )])
+            .unwrap();
+        crate::DATABASE.lock().unwrap()[0]
+            .run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
 
-            //Delete the Split records
-            let binding_object =
-                serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(
-                    &transaction_guid,
-                )])
-                .unwrap();
-            crate::DATABASE.lock().unwrap()[0]
-                .run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
+        //Delete the Split records
+        let binding_object =
+            serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(
+                &transaction_guid,
+            )])
+            .unwrap();
+        crate::DATABASE.lock().unwrap()[0]
+            .run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
 
-            //Delete the Slot record(s) for this transaction
-            let binding_object =
-                serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(
-                    &transaction_guid,
-                )])
-                .unwrap();
-            crate::DATABASE.lock().unwrap()[0]
-                .run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
-        }
-    
+        //Delete the Slot record(s) for this transaction
+        let binding_object =
+            serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(
+                &transaction_guid,
+            )])
+            .unwrap();
+        crate::DATABASE.lock().unwrap()[0]
+            .run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
+    }
 
     return Ok(true);
 }
@@ -156,67 +155,67 @@ pub fn save_transaction(txn: TransactionWithSplitInformation) -> Result<bool, St
     //db.run("CREATE TABLE test (col1, col2);");
     //// Insert two rows: (1,111) and (2,222)
     //db.run("INSERT INTO test VALUES (?,?), (?,?)", [1, 111, 2, 222]);
-    
-        if crate::DATABASE.lock().unwrap().len() == 0 {
-            return Err(
-                "Please select a database in order to view the account by the given guid."
-                    .to_string(),
-            );
-        }
 
-        {
-            //Delete the Transaction Records, and the associated records first
-            let binding_object =
-                serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(&txn.guid)])
-                    .unwrap();
-            crate::DATABASE.lock().unwrap()[0]
-                .run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
+    if crate::DATABASE.lock().unwrap().len() == 0 {
+        return Err(
+            "Please select a database in order to view the account by the given guid.".to_string(),
+        );
+    }
 
-            //Delete the Split records
-            let binding_object =
-                serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(&txn.guid)])
-                    .unwrap();
-            crate::DATABASE.lock().unwrap()[0]
-                .run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
+    {
+        //Delete the Transaction Records, and the associated records first
+        let binding_object =
+            serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(&txn.guid)])
+                .unwrap();
+        crate::DATABASE.lock().unwrap()[0]
+            .run_with_parameters("DELETE FROM Transactions WHERE guid=?", binding_object);
 
-            //Delete the Slot record(s) for this transaction
-            let binding_object =
-                serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(&txn.guid)])
-                    .unwrap();
-            crate::DATABASE.lock().unwrap()[0]
-                .run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
+        //Delete the Split records
+        let binding_object =
+            serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(&txn.guid)])
+                .unwrap();
+        crate::DATABASE.lock().unwrap()[0]
+            .run_with_parameters("DELETE FROM splits WHERE tx_guid=?", binding_object);
 
-            //Insert The Transaction Record
-            let binding_object = serde_wasm_bindgen::to_value(&vec![
-                &dhu::convert_guid_to_sqlite_string(&txn.guid), //guid
-                &dhu::convert_guid_to_sqlite_string(&txn.currency_guid), //currency_guid
-                &txn.num,                                       //num
-                &txn.post_date,                                 //post_date
-                &txn.enter_date,                                //enter_date
-                &txn.description,                               //description
-            ])
-            .unwrap();
-            crate::DATABASE.lock().unwrap()[0].run_with_parameters(
-                "
+        //Delete the Slot record(s) for this transaction
+        let binding_object =
+            serde_wasm_bindgen::to_value(&vec![&dhu::convert_guid_to_sqlite_string(&txn.guid)])
+                .unwrap();
+        crate::DATABASE.lock().unwrap()[0]
+            .run_with_parameters("DELETE FROM slots WHERE obj_guid=@guid", binding_object);
+
+        //Insert The Transaction Record
+        let binding_object = serde_wasm_bindgen::to_value(&vec![
+            &dhu::convert_guid_to_sqlite_string(&txn.guid), //guid
+            &dhu::convert_guid_to_sqlite_string(&txn.currency_guid), //currency_guid
+            &txn.num,                                       //num
+            &txn.post_date,                                 //post_date
+            &txn.enter_date,                                //enter_date
+            &txn.description,                               //description
+        ])
+        .unwrap();
+        crate::DATABASE.lock().unwrap()[0].run_with_parameters(
+            "
                 INSERT INTO Transactions(
                                             guid,currency_guid,num,post_date,enter_date,description
                                         ) VALUES (                                                 
                                             ?,    ?,           ?,  ?,        ?,         ?) ",
-                binding_object,
-            );
-            js::log(&format!("Transaction GUID '{}'", txn.guid));
-            //Create the Split to subtract from the From Account
-            let binding_object = serde_wasm_bindgen::to_value(&vec![
-                &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()), //guid
-                &dhu::convert_guid_to_sqlite_string(&txn.guid),       //tx_guid
-                &dhu::convert_guid_to_sqlite_string(&txn.account_guid), //account_guid
-                &(txn.value_num as f64 * -1.0).to_string(),           //value_num
-                &txn.value_denom.to_string(),                         //value_denom
-                &(txn.value_num as f64 * -1.0).to_string(),           //quantity_num
-                &txn.value_denom.to_string(),                         //quantity_denom
-            ])
-            .unwrap();
-            crate::DATABASE.lock().unwrap()[0].run_with_parameters("
+            binding_object,
+        );
+        //js::log(&format!("Transaction GUID '{}'", txn.guid));
+
+        //Create the Split to subtract from the From Account
+        let binding_object = serde_wasm_bindgen::to_value(&vec![
+            &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()), //guid
+            &dhu::convert_guid_to_sqlite_string(&txn.guid),       //tx_guid
+            &dhu::convert_guid_to_sqlite_string(&txn.account_guid), //account_guid
+            &(txn.value_num as f64 * -1.0).to_string(),           //value_num
+            &txn.value_denom.to_string(),                         //value_denom
+            &(txn.value_num as f64 * -1.0).to_string(),           //quantity_num
+            &txn.value_denom.to_string(),                         //quantity_denom
+        ])
+        .unwrap();
+        crate::DATABASE.lock().unwrap()[0].run_with_parameters("
                 INSERT INTO Splits(
                                     guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date,
                                     value_num,value_denom,quantity_num,quantity_denom,lot_guid
@@ -224,18 +223,18 @@ pub fn save_transaction(txn: TransactionWithSplitInformation) -> Result<bool, St
                                     ?,   ?,      ?,           '',  '',    'n',            NULL,
                                     ?,        ?,          ?,           ?,             NULL)", binding_object);
 
-            //Create the other Split to add to the To Account
-            let binding_object = serde_wasm_bindgen::to_value(&vec![
-                &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()), //guid
-                &dhu::convert_guid_to_sqlite_string(&txn.guid),       //tx_guid
-                &dhu::convert_guid_to_sqlite_string(&txn.excluded_account_guid), //account_guid
-                &txn.value_num.to_string(),                           //value_num
-                &txn.value_denom.to_string(),                         //value_denom
-                &txn.value_num.to_string(),                           //quantity_num
-                &txn.value_denom.to_string(),                         //quantity_denom
-            ])
-            .unwrap();
-            crate::DATABASE.lock().unwrap()[0].run_with_parameters("
+        //Create the other Split to add to the To Account
+        let binding_object = serde_wasm_bindgen::to_value(&vec![
+            &dhu::convert_guid_to_sqlite_string(&Uuid::new_v4()), //guid
+            &dhu::convert_guid_to_sqlite_string(&txn.guid),       //tx_guid
+            &dhu::convert_guid_to_sqlite_string(&txn.excluded_account_guid), //account_guid
+            &txn.value_num.to_string(),                           //value_num
+            &txn.value_denom.to_string(),                         //value_denom
+            &txn.value_num.to_string(),                           //quantity_num
+            &txn.value_denom.to_string(),                         //quantity_denom
+        ])
+        .unwrap();
+        crate::DATABASE.lock().unwrap()[0].run_with_parameters("
                 INSERT INTO Splits(
                                     guid,tx_guid,account_guid,memo,action,reconcile_state,reconcile_date,
                                     value_num,value_denom,quantity_num,quantity_denom,lot_guid
@@ -243,16 +242,16 @@ pub fn save_transaction(txn: TransactionWithSplitInformation) -> Result<bool, St
                                     ?,   ?,      ?,           '',  '',    'n',            NULL,
                                     ?,        ?,          ?,           ?,             NULL)", binding_object);
 
-            if txn.memo.trim() != "" {
-                //Create a notes slot for this transaction
-                let binding_object = serde_wasm_bindgen::to_value(&vec![
-                    &dhu::convert_guid_to_sqlite_string(&txn.guid), //obj_guid
-                    &slots_manager::SLOT_NAME_NOTES.to_string(),    //name
-                    &slots_manager::SLOT_NAME_NOTES_SLOT_TYPE_VALUE.to_string(), //slot_type
-                    &txn.memo,                                      //string_val
-                ])
-                .unwrap();
-                crate::DATABASE.lock().unwrap()[0].run_with_parameters("
+        if txn.memo.trim() != "" {
+            //Create a notes slot for this transaction
+            let binding_object = serde_wasm_bindgen::to_value(&vec![
+                &dhu::convert_guid_to_sqlite_string(&txn.guid), //obj_guid
+                &slots_manager::SLOT_NAME_NOTES.to_string(),    //name
+                &slots_manager::SLOT_NAME_NOTES_SLOT_TYPE_VALUE.to_string(), //slot_type
+                &txn.memo,                                      //string_val
+            ])
+            .unwrap();
+            crate::DATABASE.lock().unwrap()[0].run_with_parameters("
                     INSERT INTO Slots(
                                         id,obj_guid,name,slot_type,int64_val,string_val,double_val,
                                         timespec_val,guid_val,numeric_val_num,numeric_val_denom,gdate_val
@@ -262,9 +261,8 @@ pub fn save_transaction(txn: TransactionWithSplitInformation) -> Result<bool, St
                                         NULL,        NULL,    0,              1,                NULL
                                     )",
                                     binding_object);
-            }
         }
-    
+    }
 
     return Ok(true);
 }
@@ -311,6 +309,158 @@ pub fn retrieve_transaction_with_split_information_for_account_guid_and_descript
     }
 
     return transaction_with_split;
+}
+
+pub fn retrieve_transactions_with_split_information_for_account_guid_for_past_year(account_guid: Uuid) -> Result<Vec<TransactionWithSplitInformation>, String> {
+    if crate::DATABASE.lock().unwrap().len() == 0 {
+        return Err("No Database Loaded!".to_string());
+    }
+
+    //Get the date we want to limit results to start at 1 year so far
+    let date_to_use = chrono::NaiveDateTime::new(
+        NaiveDate::from_ymd_opt(
+            Local::now().naive_local().date().year(),
+            Local::now().naive_local().date().month(),
+            Local::now().naive_local().date().day(),
+        )
+        .unwrap(),
+        NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap(),
+    )
+    .checked_sub_days(chrono::Days::new(365))
+    .unwrap();
+
+    //Get the balance, and account information for the previous year
+    let mut accounts = Vec::new();
+
+    let stmt = crate::DATABASE.lock().unwrap()[0]
+        .prepare(&shu::load_account_with_balance_for_date_and_guid());
+
+    let binding_object = serde_wasm_bindgen::to_value(&vec![
+        &date_to_use.format("%Y-%m-%d 00:00:00").to_string(),
+        &dhu::convert_guid_to_sqlite_string(&account_guid),
+    ])
+    .unwrap();
+
+    //js::log(&("Here is the binding_object! ".to_owned() + &js::stringify(binding_object.clone())));
+
+    stmt.bind(binding_object.clone());
+
+    while stmt.step() {
+        let row = stmt.getAsObject();
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+        let mut account: Account = serde_wasm_bindgen::from_value(row.clone()).unwrap();
+
+        let tags: serde_json::Value =
+            serde_json::from_str(js::stringify(row.clone()).as_str()).unwrap();
+
+        let balance = format!("{}", tags["balance"])
+            .parse::<f64>()
+            .expect("Balance is not valid!");
+        account
+            .tags
+            .insert("balance".to_string(), balance.to_string());
+
+        let mnemonic: String =
+            dhu::remove_first_and_last_double_quotes_from_string(tags["mnemonic"].to_string());
+        account
+            .tags
+            .insert("mnemonic".to_string(), mnemonic.clone());
+
+        accounts.push(account);
+    }
+
+    //Free the memory for the statement, and the bindings
+    stmt.free();
+    stmt.freemem();
+
+    //Exit if there were no results returned
+    if accounts.len() != 1 {
+        let date = date_to_use.clone().to_string();
+        let account_guid_string = account_guid.clone();
+        return Err(format!("Cannot continue! There were 0 accounts retrieved for guid '{account_guid_string}', as of '{date}'."));
+    }
+
+    //Next now that we have a single account record, we can continue, and get the transactions loaded for the past year
+    let mut transactions_with_splits = Vec::new();
+    let transactions_before_year = transactions_manager::TransactionWithSplitInformation {
+        excluded_account_guid: accounts[0].guid,
+        excluded_account_name: accounts[0].name.clone(),
+        excluded_account_mnemonic: accounts[0].tags["mnemonic"].clone(),
+        guid: uuid::Uuid::nil(),
+        currency_guid: uuid::Uuid::nil(),
+        num: "".to_string(),
+        post_date: dhu::convert_date_to_string_format(date_to_use),
+        enter_date: dhu::convert_date_to_string_format(date_to_use),
+        description: format!(
+            "Balance Prior To {}",
+            date_to_use.format("%m/%d/%Y").to_string()
+        ),
+        value_num: (accounts[0].tags["balance"].parse::<f64>().unwrap()
+            * accounts[0].commodity_scu as f64)
+            .round() as i64,
+        value_denom: -1 * accounts[0].commodity_scu, //-1 because this is from the account side which is negative for our current view
+        account_name: "".to_string(),
+        account_guid: uuid::Uuid::nil(),
+        memo: "".to_string(),
+    };
+
+    transactions_with_splits.push(transactions_before_year);
+
+    let stmt = crate::DATABASE.lock().unwrap()[0]
+        .prepare(&shu::load_transactions_for_account_between_dates());
+
+    let from_date = chrono::NaiveDateTime::new(
+        NaiveDate::from_ymd_opt(
+            Local::now().naive_local().date().year(),
+            Local::now().naive_local().date().month(),
+            Local::now().naive_local().date().day(),
+        )
+        .unwrap(),
+        NaiveTime::from_hms_milli_opt(0, 0, 0, 000).unwrap(),
+    )
+    .checked_sub_days(chrono::Days::new(365))
+    .unwrap();
+
+    let from_date = from_date.format("%Y-%m-%d 00:00:00").to_string();
+
+    let thru_date = chrono::NaiveDateTime::new(
+        NaiveDate::from_ymd_opt(9999, 12, 31).unwrap(),
+        NaiveTime::from_hms_milli_opt(23, 59, 59, 999).unwrap(),
+    );
+
+    let thru_date = thru_date.format("%Y-%m-%d 23:59:59").to_string();
+
+    let binding_object = serde_wasm_bindgen::to_value(&vec![
+        dhu::convert_guid_to_sqlite_string(&account_guid),
+        dhu::convert_guid_to_sqlite_string(&account_guid),
+        dhu::convert_guid_to_sqlite_string(&account_guid),
+        dhu::convert_guid_to_sqlite_string(&account_guid),
+        from_date,
+        thru_date,
+    ])
+    .unwrap();
+
+    //js::log(&("Here is the binding_object! ".to_owned() + &js::stringify(binding_object.clone())));
+
+    stmt.bind(binding_object.clone());
+
+    while stmt.step() {
+        let row = stmt.getAsObject();
+        //js::log(&("Here is a row: ".to_owned() + &js::stringify(row.clone()).to_owned()));
+
+        let txn: transactions_manager::TransactionWithSplitInformation =
+            serde_wasm_bindgen::from_value(row.clone()).unwrap();
+
+        transactions_with_splits.push(txn);
+    }
+
+    //Free the memory for the statement, and the bindings
+    stmt.free();
+    stmt.freemem();
+
+    Ok(transactions_with_splits)
+
 }
 
 // ///

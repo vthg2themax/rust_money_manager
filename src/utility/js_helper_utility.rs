@@ -54,7 +54,7 @@ pub fn set_timeout(incoming_once_into_js_closure: JsValue, timeout_in_millisecon
 
     let closure_to_use = incoming_once_into_js_closure
         .dyn_ref()
-        .expect("Failed to conert closure.");
+        .expect("Failed to convert closure.");
 
     let _windows_timeout_set_result = window.set_timeout_with_callback_and_timeout_and_arguments(
         closure_to_use,
